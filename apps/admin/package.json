@@ -1,0 +1,19 @@
+{
+  "name": "@cms/admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node -e \"console.log('CMS-0102 will replace this with Vite dev server')\"",
+    "build": "node -e \"console.log('CMS-0102 will replace this with Vite build')\"",
+    "lint": "node -e \"console.log('CMS-0107 will configure admin lint')\"",
+    "typecheck": "node -e \"console.log('CMS-0106 will configure admin typecheck')\"",
+    "test": "node -e \"console.log('CMS-0114 will configure admin tests')\"",
+    "format": "node -e \"console.log('CMS-0107 will configure admin format')\""
+  },
+  "dependencies": {
+    "@cms/shared": "workspace:*",
+    "@cms/ui": "workspace:*"
+  }
+}
+

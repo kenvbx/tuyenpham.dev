@@ -1,0 +1,20 @@
+{
+  "name": "@cms/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "node -e \"console.log('CMS-0105 will configure UI build')\"",
+    "lint": "node -e \"console.log('CMS-0107 will configure UI lint')\"",
+    "typecheck": "node -e \"console.log('CMS-0106 will configure UI typecheck')\"",
+    "test": "node -e \"console.log('CMS-0114 will configure UI tests')\"",
+    "format": "node -e \"console.log('CMS-0107 will configure UI format')\""
+  },
+  "dependencies": {
+    "@cms/shared": "workspace:*"
+  }
+}
+

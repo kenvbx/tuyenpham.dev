@@ -1,0 +1,14 @@
+{
+  "name": "@cms/tooling",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "db:migrate": "node scripts/not-configured.mjs db:migrate CMS-0202",
+    "db:seed": "node scripts/not-configured.mjs db:seed CMS-0202",
+    "lint": "node -e \"console.log('tooling lint placeholder')\"",
+    "typecheck": "node -e \"console.log('tooling typecheck placeholder')\"",
+    "test": "node -e \"console.log('tooling test placeholder')\""
+  }
+}
+

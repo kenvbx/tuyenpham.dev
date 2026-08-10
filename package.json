@@ -1,0 +1,26 @@
+{
+  "name": "tuyenpham-cms",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @cms/admin --filter @cms/api dev",
+    "dev:admin": "pnpm --filter @cms/admin dev",
+    "dev:api": "pnpm --filter @cms/api dev",
+    "build": "pnpm -r --if-present build",
+    "build:admin": "pnpm --filter @cms/admin build",
+    "build:api": "pnpm --filter @cms/api build",
+    "lint": "pnpm -r --if-present lint",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "format": "pnpm -r --if-present format",
+    "db:migrate": "pnpm --filter @cms/tooling db:migrate",
+    "db:seed": "pnpm --filter @cms/tooling db:seed"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}
+

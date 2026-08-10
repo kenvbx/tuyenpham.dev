@@ -1,0 +1,19 @@
+{
+  "name": "@cms/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node -e \"console.log('CMS-0103 will replace this with Express watch mode')\"",
+    "build": "node -e \"console.log('CMS-0103 will replace this with API build')\"",
+    "start": "node -e \"console.log('CMS-0103 will replace this with API start')\"",
+    "lint": "node -e \"console.log('CMS-0107 will configure API lint')\"",
+    "typecheck": "node -e \"console.log('CMS-0106 will configure API typecheck')\"",
+    "test": "node -e \"console.log('CMS-0114 will configure API tests')\"",
+    "format": "node -e \"console.log('CMS-0107 will configure API format')\""
+  },
+  "dependencies": {
+    "@cms/shared": "workspace:*"
+  }
+}
+

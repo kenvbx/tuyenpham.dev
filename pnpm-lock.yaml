@@ -1,0 +1,34 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .: {}
+
+  apps/admin:
+    dependencies:
+      '@cms/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@cms/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+
+  apps/api:
+    dependencies:
+      '@cms/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+
+  packages/shared: {}
+
+  packages/ui:
+    dependencies:
+      '@cms/shared':
+        specifier: workspace:*
+        version: link:../shared
+
+  tooling: {}
