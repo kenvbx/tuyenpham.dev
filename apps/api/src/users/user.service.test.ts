@@ -10,11 +10,13 @@ function createThenableQuery(data: unknown[] = [], count = data.length) {
     eq: vi.fn(() => builder),
     in: vi.fn(async () => result),
     insert: vi.fn(async () => result),
+    maybeSingle: vi.fn(async () => ({ data: data[0] ?? null, error: null })),
     or: vi.fn(() => builder),
     order: vi.fn(() => builder),
     range: vi.fn(() => builder),
     select: vi.fn(() => builder),
     then: promise.then.bind(promise),
+    update: vi.fn(() => builder),
     upsert: vi.fn(() => builder),
   };
 
@@ -129,5 +131,70 @@ describe("UserService", () => {
       }),
     );
     expect(profileQueries[0]?.upsert).toHaveBeenCalled();
+  });
+
+  it("updates profiles and role assignments", async () => {
+    const profile = {
+      avatar_id: null,
+      created_at: "2026-08-10T00:00:00.000Z",
+      display_name: "Old Admin",
+      email: "old@example.com",
+      first_name: "Old",
+      id: "user-3",
+      last_login_at: null,
+      last_name: null,
+      status: "active",
+      updated_at: "2026-08-10T00:00:00.000Z",
+    };
+    let currentProfile = profile;
+    const client = {
+      auth: {
+        admin: {
+          createUser: vi.fn(),
+          updateUserById: vi.fn(async () => ({ data: { user: {} }, error: null })),
+        },
+      },
+      from: vi.fn((table: string) => {
+        if (table === "profiles") {
+          const query = createThenableQuery([currentProfile]);
+          query.update.mockImplementation((patch: Partial<typeof profile>) => {
+            currentProfile = {
+              ...currentProfile,
+              ...patch,
+              updated_at: "2026-08-10T01:00:00.000Z",
+            };
+            return query;
+          });
+          return query;
+        }
+
+        return createThenableQuery([
+          {
+            roles: { id: "role-2", name: "Editor", slug: "editor" },
+            user_id: "user-3",
+          },
+        ]);
+      }),
+    };
+    const service = new UserService({ client });
+
+    const result = await service.updateUser("user-3", {
+      displayName: "Editor Admin",
+      email: "editor@example.com",
+      roleIds: ["role-2"],
+      status: "active",
+    });
+
+    expect(result).toMatchObject({
+      displayName: "Editor Admin",
+      email: "editor@example.com",
+      roles: [{ id: "role-2", name: "Editor", slug: "editor" }],
+    });
+    expect(client.auth.admin.updateUserById).toHaveBeenCalledWith(
+      "user-3",
+      expect.objectContaining({
+        email: "editor@example.com",
+      }),
+    );
   });
 });

@@ -28,6 +28,17 @@ const createUserBodySchema = z.object({
   roleIds: z.array(z.string().uuid()).default([]),
   status: z.enum(["active", "inactive", "suspended"]).default("active"),
 });
+const updateUserBodySchema = z.object({
+  displayName: userNameSchema,
+  email: z.string().trim().email().optional(),
+  firstName: userNameSchema,
+  lastName: userNameSchema,
+  roleIds: z.array(z.string().uuid()).optional(),
+  status: z.enum(["active", "inactive", "suspended"]).optional(),
+});
+const userParamsSchema = z.object({
+  userId: z.string().uuid(),
+});
 
 export type UserRouterOptions = {
   auth?: AuthService;
@@ -71,6 +82,25 @@ export function createUserRouter(options: UserRouterOptions = {}): ExpressRouter
         const user = await users.createUser(body);
 
         response.status(201).json({
+          data: user,
+        });
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.patch(
+    "/:userId",
+    requireAuth(auth),
+    requirePermission(Permission.USERS_EDIT, permissions),
+    async (request, response, next) => {
+      try {
+        const params = userParamsSchema.parse(request.params);
+        const body = updateUserBodySchema.parse(request.body);
+        const user = await users.updateUser(params.userId, body);
+
+        response.json({
           data: user,
         });
       } catch (error) {

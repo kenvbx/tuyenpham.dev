@@ -34,3 +34,12 @@ export type CreateUserInput = {
   roleIds?: string[] | undefined;
   status?: "active" | "inactive" | "suspended" | undefined;
 };
+
+export type UpdateUserInput = {
+  displayName?: string | undefined;
+  email?: string | undefined;
+  firstName?: string | undefined;
+  lastName?: string | undefined;
+  roleIds?: string[] | undefined;
+  status?: "active" | "inactive" | "suspended" | undefined;
+};

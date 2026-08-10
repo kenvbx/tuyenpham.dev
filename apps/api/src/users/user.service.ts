@@ -4,7 +4,13 @@ import { createPagination } from "@cms/shared";
 
 import { HttpError } from "../http/http-error.js";
 import { supabase } from "../supabase/client.js";
-import type { AdminUser, CreateUserInput, ListUsersParams, UserRoleSummary } from "./user.types.js";
+import type {
+  AdminUser,
+  CreateUserInput,
+  ListUsersParams,
+  UpdateUserInput,
+  UserRoleSummary,
+} from "./user.types.js";
 
 type SupabaseQueryResult<TData> = {
   count?: number | null;
@@ -17,14 +23,16 @@ type QueryBuilder = PromiseLike<SupabaseQueryResult<unknown[]>> & {
   eq: (column: string, value: unknown) => QueryBuilder;
   in: (column: string, values: unknown[]) => Promise<SupabaseQueryResult<unknown[]>>;
   insert: (values: unknown) => Promise<SupabaseQueryResult<unknown[]>>;
+  maybeSingle: () => Promise<SupabaseQueryResult<unknown>>;
   or: (filters: string) => QueryBuilder;
   order: (column: string, options?: { ascending?: boolean }) => QueryBuilder;
-  upsert: (values: unknown, options?: { onConflict?: string }) => QueryBuilder;
   range: (from: number, to: number) => QueryBuilder;
   select: (columns: string, options?: { count?: "exact" }) => QueryBuilder;
+  update: (values: unknown) => QueryBuilder;
+  upsert: (values: unknown, options?: { onConflict?: string }) => QueryBuilder;
 };
 
-type AdminAuthClient = Pick<SupabaseClient["auth"]["admin"], "createUser">;
+type AdminAuthClient = Pick<SupabaseClient["auth"]["admin"], "createUser" | "updateUserById">;
 
 type UserServiceClient = Pick<SupabaseClient, "from"> & {
   auth?: {
@@ -158,6 +166,71 @@ export class UserService {
     return toAdminUser(profile, rolesByUserId.get(userId) ?? []);
   }
 
+  async updateUser(userId: string, input: UpdateUserInput): Promise<AdminUser> {
+    const existingProfile = await this.loadProfileById(userId);
+
+    if (input.email || input.displayName || input.firstName || input.lastName) {
+      const authAdmin = this.client.auth?.admin;
+
+      if (!authAdmin) {
+        throw new HttpError("Supabase admin auth client is not configured.", {
+          code: "auth_admin_not_configured",
+          statusCode: 500,
+        });
+      }
+
+      const updateResult = await authAdmin.updateUserById(userId, {
+        ...(input.email ? { email: input.email } : {}),
+        user_metadata: {
+          display_name: input.displayName ?? existingProfile.display_name ?? input.email,
+          first_name: input.firstName ?? existingProfile.first_name,
+          last_name: input.lastName ?? existingProfile.last_name,
+        },
+      });
+
+      if (updateResult.error) {
+        throw new HttpError("Unable to update auth user.", {
+          code: "auth_user_update_failed",
+          details: { cause: updateResult.error.message },
+          statusCode: 500,
+        });
+      }
+    }
+
+    const patch = {
+      ...(input.displayName !== undefined ? { display_name: input.displayName } : {}),
+      ...(input.email !== undefined ? { email: input.email } : {}),
+      ...(input.firstName !== undefined ? { first_name: input.firstName } : {}),
+      ...(input.lastName !== undefined ? { last_name: input.lastName } : {}),
+      ...(input.status !== undefined ? { status: input.status } : {}),
+    };
+
+    if (Object.keys(patch).length > 0) {
+      const result = await this.from("profiles").update(patch).eq("id", userId);
+
+      if (result.error) {
+        throw new HttpError("Unable to update user profile.", {
+          code: "profile_update_failed",
+          details: { cause: result.error.message },
+          statusCode: 500,
+        });
+      }
+    }
+
+    if (input.roleIds !== undefined) {
+      await this.replaceUserRoles(userId, input.roleIds);
+    }
+
+    return this.getUser(userId);
+  }
+
+  async getUser(userId: string): Promise<AdminUser> {
+    const profile = await this.loadProfileById(userId);
+    const rolesByUserId = await this.loadRolesByUserId([userId]);
+
+    return toAdminUser(profile, rolesByUserId.get(userId) ?? []);
+  }
+
   private async loadRolesByUserId(userIds: string[]): Promise<Map<string, UserRoleSummary[]>> {
     if (userIds.length === 0) {
       return new Map();
@@ -187,6 +260,30 @@ export class UserService {
     }
 
     return rolesByUserId;
+  }
+
+  private async loadProfileById(userId: string): Promise<ProfileRow> {
+    const result = await this.from("profiles")
+      .select(PROFILE_SELECT)
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (result.error) {
+      throw new HttpError("Unable to load user profile.", {
+        code: "profile_lookup_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    if (!result.data) {
+      throw new HttpError("User was not found.", {
+        code: "user_not_found",
+        statusCode: 404,
+      });
+    }
+
+    return result.data as ProfileRow;
   }
 
   private async replaceUserRoles(userId: string, roleIds: string[]): Promise<void> {

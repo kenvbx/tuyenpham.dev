@@ -18,6 +18,7 @@ const user: AuthenticatedUser = {
   role: "authenticated",
   userMetadata: {},
 };
+const targetUserId = "10000000-0000-4000-8000-000000000010";
 
 const context: PermissionContext = {
   isSuperAdmin: true,
@@ -140,6 +141,44 @@ describe("user routes", () => {
       lastName: "Admin",
       roleIds: [],
       status: "active",
+    });
+  });
+
+  it("updates users", async () => {
+    const users = {
+      updateUser: vi.fn(async () => ({
+        avatarId: null,
+        createdAt: "2026-08-10T00:00:00.000Z",
+        displayName: "Updated Admin",
+        email: "updated@example.com",
+        firstName: "Updated",
+        id: targetUserId,
+        lastLoginAt: null,
+        lastName: "Admin",
+        roles: [],
+        status: "active",
+        updatedAt: "2026-08-10T01:00:00.000Z",
+      })),
+    } as unknown as UserService;
+
+    const response = await request(createTestApp(users))
+      .patch(`/admin/users/${targetUserId}`)
+      .set("Authorization", "Bearer token")
+      .send({
+        displayName: "Updated Admin",
+        roleIds: [],
+      })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      data: {
+        displayName: "Updated Admin",
+        id: targetUserId,
+      },
+    });
+    expect(users.updateUser).toHaveBeenCalledWith(targetUserId, {
+      displayName: "Updated Admin",
+      roleIds: [],
     });
   });
 });
