@@ -1,5 +1,6 @@
 import { Permission } from "@cms/shared";
 import { CmsIcon, type CmsIconName } from "@cms/ui";
+import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { PermissionGate } from "../auth/PermissionGate";
@@ -32,10 +33,17 @@ const navigationItems: NavigationItem[] = [
 export function AdminLayout() {
   const auth = useAuth();
   const location = useLocation();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const title = getPageTitle(location.pathname);
 
   return (
-    <div className="admin-shell">
+    <div className={isSidebarOpen ? "admin-shell is-sidebar-open" : "admin-shell"}>
+      <button
+        className="sidebar-scrim"
+        type="button"
+        aria-label="Close navigation"
+        onClick={() => setIsSidebarOpen(false)}
+      />
       <aside className="admin-sidebar" aria-label="Admin navigation">
         <div className="brand">
           <span className="brand-mark">
@@ -49,7 +57,11 @@ export function AdminLayout() {
         <nav>
           {navigationItems.map((item) => (
             <PermissionGate key={item.label} permission={item.permission ?? ""}>
-              <NavLink end={item.to === "/admin"} to={item.to}>
+              <NavLink
+                end={item.to === "/admin"}
+                to={item.to}
+                onClick={() => setIsSidebarOpen(false)}
+              >
                 <CmsIcon name={item.icon} />
                 {item.label}
               </NavLink>
@@ -60,6 +72,15 @@ export function AdminLayout() {
 
       <div className="admin-main">
         <header className="admin-topbar">
+          <button
+            className="sidebar-toggle"
+            type="button"
+            aria-label="Open navigation"
+            aria-expanded={isSidebarOpen}
+            onClick={() => setIsSidebarOpen((current) => !current)}
+          >
+            <CmsIcon name="menu" />
+          </button>
           <div>
             <p>Admin</p>
             <h1>{title}</h1>
@@ -79,7 +100,7 @@ export function AdminLayout() {
             </button>
           </div>
         </header>
-        <main>
+        <main className="admin-content">
           <Outlet />
         </main>
       </div>
