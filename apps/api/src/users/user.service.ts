@@ -4,7 +4,7 @@ import { createPagination } from "@cms/shared";
 
 import { HttpError } from "../http/http-error.js";
 import { supabase } from "../supabase/client.js";
-import type { AdminUser, ListUsersParams, UserRoleSummary } from "./user.types.js";
+import type { AdminUser, CreateUserInput, ListUsersParams, UserRoleSummary } from "./user.types.js";
 
 type SupabaseQueryResult<TData> = {
   count?: number | null;
@@ -13,15 +13,24 @@ type SupabaseQueryResult<TData> = {
 };
 
 type QueryBuilder = PromiseLike<SupabaseQueryResult<unknown[]>> & {
+  delete: () => QueryBuilder;
   eq: (column: string, value: unknown) => QueryBuilder;
   in: (column: string, values: unknown[]) => Promise<SupabaseQueryResult<unknown[]>>;
+  insert: (values: unknown) => Promise<SupabaseQueryResult<unknown[]>>;
   or: (filters: string) => QueryBuilder;
   order: (column: string, options?: { ascending?: boolean }) => QueryBuilder;
+  upsert: (values: unknown, options?: { onConflict?: string }) => QueryBuilder;
   range: (from: number, to: number) => QueryBuilder;
   select: (columns: string, options?: { count?: "exact" }) => QueryBuilder;
 };
 
-type UserServiceClient = Pick<SupabaseClient, "from">;
+type AdminAuthClient = Pick<SupabaseClient["auth"]["admin"], "createUser">;
+
+type UserServiceClient = Pick<SupabaseClient, "from"> & {
+  auth?: {
+    admin?: AdminAuthClient;
+  };
+};
 
 export type UserServiceOptions = {
   client?: UserServiceClient;
@@ -98,6 +107,57 @@ export class UserService {
     };
   }
 
+  async createUser(input: CreateUserInput): Promise<AdminUser> {
+    const authAdmin = this.client.auth?.admin;
+
+    if (!authAdmin) {
+      throw new HttpError("Supabase admin auth client is not configured.", {
+        code: "auth_admin_not_configured",
+        statusCode: 500,
+      });
+    }
+
+    const createResult = await authAdmin.createUser({
+      email: input.email,
+      email_confirm: true,
+      ...(input.password ? { password: input.password } : {}),
+      user_metadata: {
+        display_name: input.displayName ?? input.email,
+        first_name: input.firstName ?? null,
+        last_name: input.lastName ?? null,
+      },
+    });
+
+    if (createResult.error || !createResult.data.user) {
+      throw new HttpError("Unable to create auth user.", {
+        code: "auth_user_create_failed",
+        details: { cause: createResult.error?.message },
+        statusCode: 500,
+      });
+    }
+
+    const userId = createResult.data.user.id;
+    const profile: ProfileRow = {
+      avatar_id: null,
+      created_at: createResult.data.user.created_at,
+      display_name: input.displayName ?? input.email,
+      email: input.email,
+      first_name: input.firstName ?? null,
+      id: userId,
+      last_login_at: null,
+      last_name: input.lastName ?? null,
+      status: input.status ?? "active",
+      updated_at: createResult.data.user.updated_at ?? createResult.data.user.created_at,
+    };
+
+    await this.upsertProfile(profile);
+    await this.replaceUserRoles(userId, input.roleIds ?? []);
+
+    const rolesByUserId = await this.loadRolesByUserId([userId]);
+
+    return toAdminUser(profile, rolesByUserId.get(userId) ?? []);
+  }
+
   private async loadRolesByUserId(userIds: string[]): Promise<Map<string, UserRoleSummary[]>> {
     if (userIds.length === 0) {
       return new Map();
@@ -127,6 +187,60 @@ export class UserService {
     }
 
     return rolesByUserId;
+  }
+
+  private async replaceUserRoles(userId: string, roleIds: string[]): Promise<void> {
+    const deleteResult = await this.from("user_roles").delete().eq("user_id", userId);
+
+    if (deleteResult.error) {
+      throw new HttpError("Unable to clear user roles.", {
+        code: "user_roles_clear_failed",
+        details: { cause: deleteResult.error.message },
+        statusCode: 500,
+      });
+    }
+
+    if (roleIds.length === 0) {
+      return;
+    }
+
+    const rows = [...new Set(roleIds)].map((roleId) => ({
+      role_id: roleId,
+      user_id: userId,
+    }));
+    const insertResult = await this.from("user_roles").insert(rows);
+
+    if (insertResult.error) {
+      throw new HttpError("Unable to assign user roles.", {
+        code: "user_roles_assign_failed",
+        details: { cause: insertResult.error.message },
+        statusCode: 500,
+      });
+    }
+  }
+
+  private async upsertProfile(profile: ProfileRow): Promise<void> {
+    const result = await this.from("profiles").upsert(
+      {
+        avatar_id: profile.avatar_id,
+        display_name: profile.display_name,
+        email: profile.email,
+        first_name: profile.first_name,
+        id: profile.id,
+        last_login_at: profile.last_login_at,
+        last_name: profile.last_name,
+        status: profile.status,
+      },
+      { onConflict: "id" },
+    );
+
+    if (result.error) {
+      throw new HttpError("Unable to upsert user profile.", {
+        code: "profile_upsert_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
   }
 
   private from(table: string): QueryBuilder {

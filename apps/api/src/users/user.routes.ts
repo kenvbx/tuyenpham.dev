@@ -18,6 +18,17 @@ const listUsersQuerySchema = listQuerySchema.extend({
   status: z.enum(["active", "inactive", "suspended"]).optional(),
 });
 
+const userNameSchema = z.string().trim().min(1).max(120).optional();
+const createUserBodySchema = z.object({
+  displayName: userNameSchema,
+  email: z.string().trim().email(),
+  firstName: userNameSchema,
+  lastName: userNameSchema,
+  password: z.string().min(8).max(128).optional(),
+  roleIds: z.array(z.string().uuid()).default([]),
+  status: z.enum(["active", "inactive", "suspended"]).default("active"),
+});
+
 export type UserRouterOptions = {
   auth?: AuthService;
   permissions?: PermissionService;
@@ -44,6 +55,24 @@ export function createUserRouter(options: UserRouterOptions = {}): ExpressRouter
         );
 
         response.json(body);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.post(
+    "/",
+    requireAuth(auth),
+    requirePermission(Permission.USERS_CREATE, permissions),
+    async (request, response, next) => {
+      try {
+        const body = createUserBodySchema.parse(request.body);
+        const user = await users.createUser(body);
+
+        response.status(201).json({
+          data: user,
+        });
       } catch (error) {
         next(error);
       }

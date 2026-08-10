@@ -24,3 +24,13 @@ export type ListUsersParams = {
   search?: string | undefined;
   status?: string | undefined;
 };
+
+export type CreateUserInput = {
+  displayName?: string | undefined;
+  email: string;
+  firstName?: string | undefined;
+  lastName?: string | undefined;
+  password?: string | undefined;
+  roleIds?: string[] | undefined;
+  status?: "active" | "inactive" | "suspended" | undefined;
+};

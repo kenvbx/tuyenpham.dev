@@ -45,6 +45,7 @@ function createTestApp(users: UserService) {
     resolveUserContext: vi.fn(async () => context),
   } as unknown as PermissionService;
 
+  app.use(express.json());
   app.use("/admin/users", createUserRouter({ auth, permissions, users }));
   app.use(errorHandler);
 
@@ -93,6 +94,51 @@ describe("user routes", () => {
       page: 1,
       perPage: 20,
       search: "admin",
+      status: "active",
+    });
+  });
+
+  it("creates users", async () => {
+    const users = {
+      createUser: vi.fn(async () => ({
+        avatarId: null,
+        createdAt: "2026-08-10T00:00:00.000Z",
+        displayName: "New Admin",
+        email: "new@example.com",
+        firstName: "New",
+        id: "user-2",
+        lastLoginAt: null,
+        lastName: "Admin",
+        roles: [],
+        status: "active",
+        updatedAt: "2026-08-10T00:00:00.000Z",
+      })),
+    } as unknown as UserService;
+
+    const response = await request(createTestApp(users))
+      .post("/admin/users")
+      .set("Authorization", "Bearer token")
+      .send({
+        displayName: "New Admin",
+        email: "new@example.com",
+        firstName: "New",
+        lastName: "Admin",
+        roleIds: [],
+      })
+      .expect(201);
+
+    expect(response.body).toMatchObject({
+      data: {
+        email: "new@example.com",
+        id: "user-2",
+      },
+    });
+    expect(users.createUser).toHaveBeenCalledWith({
+      displayName: "New Admin",
+      email: "new@example.com",
+      firstName: "New",
+      lastName: "Admin",
+      roleIds: [],
       status: "active",
     });
   });
