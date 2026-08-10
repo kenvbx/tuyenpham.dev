@@ -93,6 +93,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [loadCurrentUser],
   );
 
+  const refreshCurrentUser = useCallback(async () => {
+    await loadCurrentUser(session);
+  }, [loadCurrentUser, session]);
+
   const signOut = useCallback(async () => {
     if (supabase) {
       await supabase.auth.signOut();
@@ -114,13 +118,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           currentUser?.roles.some((role) => role.slug === "super-admin"),
         ),
       isConfigured,
+      refreshCurrentUser,
       session,
       signIn,
       signOut,
       status,
       token: session?.access_token ?? null,
     }),
-    [currentUser, error, isConfigured, session, signIn, signOut, status],
+    [currentUser, error, isConfigured, refreshCurrentUser, session, signIn, signOut, status],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

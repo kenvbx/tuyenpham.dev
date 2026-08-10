@@ -10,6 +10,7 @@ export type AuthContextValue = {
   error: string | null;
   hasPermission: (permission: string) => boolean;
   isConfigured: boolean;
+  refreshCurrentUser: () => Promise<void>;
   session: Session | null;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;

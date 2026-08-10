@@ -8,6 +8,7 @@ import type { AuthenticatedUser } from "./auth.types.js";
 import { createAuthRouter } from "./auth.routes.js";
 import type { AuthService } from "./auth.service.js";
 import type { PermissionService } from "./permission.service.js";
+import type { ProfileService } from "./profile.service.js";
 import type { PermissionContext } from "./permission.types.js";
 
 const user: AuthenticatedUser = {
@@ -47,13 +48,18 @@ const context: PermissionContext = {
 function createTestApp({
   auth,
   permissions,
+  profile = {
+    updateCurrentProfile: vi.fn(async () => null),
+  } as unknown as ProfileService,
 }: {
   auth: AuthService;
   permissions: PermissionService;
+  profile?: ProfileService;
 }) {
   const app = express();
 
-  app.use("/auth", createAuthRouter({ auth, permissions }));
+  app.use(express.json());
+  app.use("/auth", createAuthRouter({ auth, permissions, profile }));
   app.use(errorHandler);
 
   return app;
@@ -107,5 +113,29 @@ describe("auth routes", () => {
         message: "missing",
       },
     });
+  });
+
+  it("updates the current profile", async () => {
+    const profile = {
+      updateCurrentProfile: vi.fn(async () => null),
+    } as unknown as ProfileService;
+    const auth = {
+      verifyAuthorizationHeader: vi.fn(async () => user),
+    } as unknown as AuthService;
+    const permissions = {
+      resolveUserContext: vi.fn(async () => context),
+    } as unknown as PermissionService;
+
+    const response = await request(createTestApp({ auth, permissions, profile }))
+      .patch("/auth/me")
+      .set("Authorization", "Bearer valid-token")
+      .send({ displayName: "Updated Admin", firstName: "Updated" })
+      .expect(200);
+
+    expect(profile.updateCurrentProfile).toHaveBeenCalledWith(user.id, {
+      displayName: "Updated Admin",
+      firstName: "Updated",
+    });
+    expect(response.body.data.profile.email).toBe("admin@example.com");
   });
 });

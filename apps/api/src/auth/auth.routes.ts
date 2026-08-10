@@ -1,10 +1,12 @@
 import { createApiSuccessResponse } from "@cms/shared";
 import { Router, type Router as ExpressRouter } from "express";
+import { z } from "zod";
 
 import { HttpError } from "../http/http-error.js";
 import { authService, type AuthService } from "./auth.service.js";
 import { requireAuth } from "./auth.middleware.js";
 import { permissionService, type PermissionService } from "./permission.service.js";
+import { profileService, type ProfileService } from "./profile.service.js";
 
 export type CurrentUserResponse = {
   permissions: string[];
@@ -31,12 +33,21 @@ export type CurrentUserResponse = {
 export type AuthRouterOptions = {
   auth?: AuthService;
   permissions?: PermissionService;
+  profile?: ProfileService;
 };
+
+const updateCurrentProfileBodySchema = z.object({
+  avatarId: z.string().uuid().nullable().optional(),
+  displayName: z.string().trim().min(1).max(120).optional(),
+  firstName: z.string().trim().min(1).max(120).optional(),
+  lastName: z.string().trim().min(1).max(120).optional(),
+});
 
 export function createAuthRouter(options: AuthRouterOptions = {}): ExpressRouter {
   const router = Router();
   const auth = options.auth ?? authService;
   const permissions = options.permissions ?? permissionService;
+  const profile = options.profile ?? profileService;
 
   router.get("/me", requireAuth(auth), async (request, response, next) => {
     try {
@@ -57,6 +68,32 @@ export function createAuthRouter(options: AuthRouterOptions = {}): ExpressRouter
       };
 
       response.json(createApiSuccessResponse(body));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.patch("/me", requireAuth(auth), async (request, response, next) => {
+    try {
+      const user = request.auth?.user;
+
+      if (!user) {
+        throw new HttpError("Authenticated user was not attached to the request.", {
+          code: "auth_context_missing",
+          statusCode: 500,
+        });
+      }
+
+      const body = updateCurrentProfileBodySchema.parse(request.body);
+      await profile.updateCurrentProfile(user.id, body);
+      const context = await permissions.resolveUserContext(user);
+      const responseBody: CurrentUserResponse = {
+        permissions: context.permissions,
+        profile: context.profile,
+        roles: context.roles,
+      };
+
+      response.json(createApiSuccessResponse(responseBody));
     } catch (error) {
       next(error);
     }

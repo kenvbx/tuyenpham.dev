@@ -295,6 +295,12 @@ select {
   padding: 10px 12px;
 }
 
+.form-alert--neutral {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
 .module-header,
 .toolbar,
 .pagination,
@@ -303,6 +309,7 @@ select {
   align-items: center;
 }
 
+.profile-page,
 .roles-page,
 .users-page {
   display: grid;
@@ -315,6 +322,7 @@ select {
   gap: 16px;
 }
 
+.profile-form p,
 .module-header p,
 .user-form p {
   margin: 0;
@@ -322,6 +330,7 @@ select {
   font-size: 13px;
 }
 
+.profile-form h3,
 .module-header h2,
 .user-form h3 {
   margin: 4px 0 0;
@@ -350,6 +359,7 @@ select {
   padding-left: 38px;
 }
 
+.profile-layout,
 .roles-layout,
 .users-layout {
   display: grid;
@@ -463,6 +473,7 @@ select {
   gap: 10px;
 }
 
+.profile-form,
 .role-form,
 .user-form {
   display: grid;
@@ -470,6 +481,7 @@ select {
   padding: 18px;
 }
 
+.profile-form label,
 .role-form label,
 .role-form fieldset,
 .user-form label,
@@ -583,6 +595,7 @@ select {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .profile-layout,
   .roles-layout,
   .users-layout {
     grid-template-columns: 1fr;

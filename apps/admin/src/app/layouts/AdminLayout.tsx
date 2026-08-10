@@ -14,6 +14,7 @@ type NavigationItem = {
 
 const navigationItems: NavigationItem[] = [
   { icon: "dashboard", label: "Dashboard", to: "/admin" },
+  { icon: "users", label: "Profile", to: "/admin/profile" },
   { icon: "fileText", label: "Pages", permission: Permission.PAGES_INDEX, to: "/admin/pages" },
   { icon: "article", label: "Blog", permission: Permission.BLOG_INDEX, to: "/admin/blog" },
   { icon: "media", label: "Media", permission: Permission.MEDIA_INDEX, to: "/admin/media" },
@@ -93,6 +94,10 @@ function getPageTitle(pathname: string) {
 
   if (pathname.startsWith("/admin/roles")) {
     return "Roles";
+  }
+
+  if (pathname.startsWith("/admin/profile")) {
+    return "Profile";
   }
 
   return "Dashboard";

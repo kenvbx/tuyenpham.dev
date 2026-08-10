@@ -72,6 +72,13 @@ export type RoleFormInput = {
   slug: string;
 };
 
+export type CurrentProfileInput = {
+  avatarId?: string | null | undefined;
+  displayName?: string | undefined;
+  firstName?: string | undefined;
+  lastName?: string | undefined;
+};
+
 export type AdminUser = {
   avatarId: string | null;
   createdAt: string;
@@ -150,6 +157,16 @@ export async function apiRequest<TData>(
 
 export async function getCurrentUser(token: string) {
   const response = await apiRequest<ApiSuccessResponse<CurrentUser>>("/auth/me", { token });
+
+  return response.data;
+}
+
+export async function updateCurrentProfile(token: string, input: CurrentProfileInput) {
+  const response = await apiRequest<ApiSuccessResponse<CurrentUser>>("/auth/me", {
+    body: cleanProfilePayload(input),
+    method: "PATCH",
+    token,
+  });
 
   return response.data;
 }
@@ -260,6 +277,12 @@ function cleanUserPayload(input: UserFormInput | UserUpdateInput) {
 
 function cleanRolePayload(input: RoleFormInput) {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== ""));
+}
+
+function cleanProfilePayload(input: CurrentProfileInput) {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => value !== "" && value !== undefined),
+  );
 }
 
 async function parseError(response: Response): Promise<ApiErrorPayload> {
