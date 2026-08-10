@@ -7,6 +7,7 @@ import { PermissionGate } from "../auth/PermissionGate";
 import { useAuth } from "../auth/auth-context";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
 import { PageHeader } from "../components/PageHeader";
+import { ValidationSummary } from "../components/ValidationSummary";
 import {
   createUser,
   disableUser,
@@ -208,11 +209,7 @@ export function UsersPage() {
         }
       />
 
-      {error && (
-        <p className="form-alert" role="alert">
-          {error instanceof Error ? error.message : "Unable to load users."}
-        </p>
-      )}
+      {error && <ValidationSummary error={error} fallback="Unable to load users." />}
 
       <div className="users-layout">
         <Card className="table-panel">

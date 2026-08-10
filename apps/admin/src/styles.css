@@ -421,6 +421,21 @@ select {
   padding: 10px 12px;
 }
 
+.form-alert p {
+  margin: 0;
+}
+
+.form-alert ul {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.form-alert li span {
+  display: block;
+}
+
 .form-alert--neutral {
   border-color: #bfdbfe;
   background: #eff6ff;

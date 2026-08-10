@@ -3,13 +3,16 @@ import { type FormEvent, useState } from "react";
 
 import { useAuth } from "../auth/auth-context";
 import { PageHeader } from "../components/PageHeader";
+import { ValidationSummary } from "../components/ValidationSummary";
 import { updateCurrentProfile } from "../lib/api";
 import { supabase } from "../lib/supabase";
 
 export function ProfilePage() {
   const auth = useAuth();
   const profile = auth.currentUser?.profile;
+  const [profileError, setProfileError] = useState<unknown>(null);
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<unknown>(null);
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
@@ -23,6 +26,7 @@ export function ProfilePage() {
 
     const formData = new FormData(event.currentTarget);
     setIsSavingProfile(true);
+    setProfileError(null);
     setProfileMessage(null);
 
     try {
@@ -35,7 +39,7 @@ export function ProfilePage() {
       await auth.refreshCurrentUser();
       setProfileMessage("Profile updated.");
     } catch (error) {
-      setProfileMessage(error instanceof Error ? error.message : "Unable to update profile.");
+      setProfileError(error);
     } finally {
       setIsSavingProfile(false);
     }
@@ -45,7 +49,7 @@ export function ProfilePage() {
     event.preventDefault();
 
     if (!supabase) {
-      setPasswordMessage("Missing Supabase admin configuration.");
+      setPasswordError(new Error("Missing Supabase admin configuration."));
       return;
     }
 
@@ -55,11 +59,12 @@ export function ProfilePage() {
     const confirmPassword = String(formData.get("confirmPassword") ?? "");
 
     if (password !== confirmPassword) {
-      setPasswordMessage("Password confirmation does not match.");
+      setPasswordError(new Error("Password confirmation does not match."));
       return;
     }
 
     setIsSavingPassword(true);
+    setPasswordError(null);
     setPasswordMessage(null);
 
     try {
@@ -72,7 +77,7 @@ export function ProfilePage() {
       form.reset();
       setPasswordMessage("Password updated.");
     } catch (error) {
-      setPasswordMessage(error instanceof Error ? error.message : "Unable to update password.");
+      setPasswordError(error);
     } finally {
       setIsSavingPassword(false);
     }
@@ -107,6 +112,9 @@ export function ProfilePage() {
               Avatar media ID
               <Input name="avatarId" defaultValue={profile?.avatarId ?? ""} />
             </label>
+            {profileError ? (
+              <ValidationSummary error={profileError} fallback="Unable to update profile." />
+            ) : null}
             {profileMessage && (
               <p className="form-alert form-alert--neutral" role="status">
                 {profileMessage}
@@ -132,6 +140,9 @@ export function ProfilePage() {
               Confirm password
               <Input required minLength={8} name="confirmPassword" type="password" />
             </label>
+            {passwordError ? (
+              <ValidationSummary error={passwordError} fallback="Unable to update password." />
+            ) : null}
             {passwordMessage && (
               <p className="form-alert form-alert--neutral" role="status">
                 {passwordMessage}

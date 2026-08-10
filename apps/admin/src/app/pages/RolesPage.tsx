@@ -7,6 +7,7 @@ import { PermissionGate } from "../auth/PermissionGate";
 import { useAuth } from "../auth/auth-context";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
 import { PageHeader } from "../components/PageHeader";
+import { ValidationSummary } from "../components/ValidationSummary";
 import {
   createRole,
   deleteRole,
@@ -165,11 +166,7 @@ export function RolesPage() {
         }
       />
 
-      {error && (
-        <p className="form-alert" role="alert">
-          {error instanceof Error ? error.message : "Unable to load roles."}
-        </p>
-      )}
+      {error && <ValidationSummary error={error} fallback="Unable to load roles." />}
 
       <div className="roles-layout">
         <Card className="table-panel">
