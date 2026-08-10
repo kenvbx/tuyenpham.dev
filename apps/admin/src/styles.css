@@ -66,6 +66,10 @@ select {
   margin-bottom: 28px;
 }
 
+.brand > span:last-child {
+  min-width: 0;
+}
+
 .brand-mark {
   display: grid;
   width: 40px;
@@ -115,6 +119,7 @@ select {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
   border-radius: 6px;
   color: #334155;
   padding: 10px 12px;
@@ -137,6 +142,7 @@ select {
   display: flex;
   min-height: 80px;
   align-items: center;
+  flex-wrap: wrap;
   gap: 16px;
   border-bottom: 1px solid #d9e0ea;
   background: #ffffff;
@@ -153,6 +159,16 @@ select {
 .login-panel h1 {
   margin: 4px 0 0;
   letter-spacing: 0;
+}
+
+.admin-topbar h1,
+.brand strong,
+.admin-sidebar a,
+.topbar-user strong,
+.topbar-user small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .breadcrumbs {
@@ -205,10 +221,12 @@ select {
   display: flex;
   align-items: center;
   gap: 14px;
+  min-width: 0;
 }
 
 .topbar-user span {
   display: grid;
+  min-width: 0;
   justify-items: end;
 }
 
@@ -552,6 +570,7 @@ select {
 .page-header-status {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -1073,7 +1092,7 @@ select {
   }
 
   .admin-sidebar nav {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
   }
 
   .summary-grid {
@@ -1108,6 +1127,13 @@ select {
   .summary-grid,
   .admin-sidebar nav {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard,
+  .profile-page,
+  .roles-page,
+  .users-page {
+    padding: 18px;
   }
 
   .toolbar,
