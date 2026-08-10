@@ -87,6 +87,9 @@ input {
 }
 
 .admin-sidebar a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   border-radius: 6px;
   color: #334155;
   padding: 10px 12px;
@@ -121,6 +124,10 @@ input {
 
 .topbar-link,
 .cms-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   border: 0;
   border-radius: 6px;
   background: #1f6feb;
@@ -141,6 +148,12 @@ input {
 
 .cms-button--danger {
   background: #dc2626;
+}
+
+.cms-icon {
+  flex: none;
+  width: 1em;
+  height: 1em;
 }
 
 .dashboard {
