@@ -4,6 +4,7 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { PermissionGate } from "../auth/PermissionGate";
 import { useAuth } from "../auth/auth-context";
+import { Breadcrumbs } from "../components/Breadcrumbs";
 import {
   getNavigationItem,
   navigationItems,
@@ -69,7 +70,7 @@ export function AdminLayout() {
             <CmsIcon name="menu" />
           </button>
           <div>
-            <p>Admin</p>
+            <Breadcrumbs />
             <h1>{title}</h1>
           </div>
           <div className="topbar-user">

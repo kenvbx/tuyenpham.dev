@@ -83,7 +83,7 @@ select {
 }
 
 .brand small,
-.admin-topbar p,
+.breadcrumbs,
 .dashboard-intro p,
 .summary-card p,
 .summary-card span,
@@ -153,6 +153,26 @@ select {
 .login-panel h1 {
   margin: 4px 0 0;
   letter-spacing: 0;
+}
+
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.breadcrumbs span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.breadcrumbs a {
+  color: #64748b;
+}
+
+.breadcrumbs [aria-current="page"] {
+  color: #334155;
 }
 
 .admin-content {

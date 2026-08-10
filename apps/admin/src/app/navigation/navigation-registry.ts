@@ -99,3 +99,16 @@ export function getNavigationItem(pathname: string) {
     dashboardNavigationItem
   );
 }
+
+export function getBreadcrumbs(pathname: string) {
+  const currentItem = getNavigationItem(pathname);
+
+  if (currentItem.to === "/admin") {
+    return [{ label: currentItem.title, to: currentItem.to }];
+  }
+
+  return [
+    { label: "Dashboard", to: "/admin" },
+    { label: currentItem.title, to: currentItem.to },
+  ];
+}
