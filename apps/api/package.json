@@ -4,16 +4,22 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node -e \"console.log('CMS-0103 will replace this with Express watch mode')\"",
-    "build": "node -e \"console.log('CMS-0103 will replace this with API build')\"",
-    "start": "node -e \"console.log('CMS-0103 will replace this with API start')\"",
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
     "lint": "node -e \"console.log('CMS-0107 will configure API lint')\"",
-    "typecheck": "node -e \"console.log('CMS-0106 will configure API typecheck')\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node -e \"console.log('CMS-0114 will configure API tests')\"",
     "format": "node -e \"console.log('CMS-0107 will configure API format')\""
   },
   "dependencies": {
-    "@cms/shared": "workspace:*"
+    "@cms/shared": "workspace:*",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.2.0",
+    "tsx": "^4.23.11",
+    "typescript": "^7.0.2"
   }
 }
-
