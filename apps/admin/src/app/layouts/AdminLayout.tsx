@@ -1,40 +1,20 @@
-import { Permission } from "@cms/shared";
-import { CmsIcon, type CmsIconName } from "@cms/ui";
+import { CmsIcon } from "@cms/ui";
 import { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 
 import { PermissionGate } from "../auth/PermissionGate";
 import { useAuth } from "../auth/auth-context";
-
-type NavigationItem = {
-  icon: CmsIconName;
-  label: string;
-  permission?: string;
-  to: string;
-};
-
-const navigationItems: NavigationItem[] = [
-  { icon: "dashboard", label: "Dashboard", to: "/admin" },
-  { icon: "users", label: "Profile", to: "/admin/profile" },
-  { icon: "fileText", label: "Pages", permission: Permission.PAGES_INDEX, to: "/admin/pages" },
-  { icon: "article", label: "Blog", permission: Permission.BLOG_INDEX, to: "/admin/blog" },
-  { icon: "media", label: "Media", permission: Permission.MEDIA_INDEX, to: "/admin/media" },
-  { icon: "menu", label: "Menus", permission: Permission.MENUS_INDEX, to: "/admin/menus" },
-  { icon: "users", label: "Users", permission: Permission.USERS_INDEX, to: "/admin/users" },
-  { icon: "shield", label: "Roles", permission: Permission.ROLES_INDEX, to: "/admin/roles" },
-  {
-    icon: "settings",
-    label: "Settings",
-    permission: Permission.SETTINGS_INDEX,
-    to: "/admin/settings",
-  },
-];
+import {
+  getNavigationItem,
+  navigationItems,
+  navigationSections,
+} from "../navigation/navigation-registry";
 
 export function AdminLayout() {
   const auth = useAuth();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const title = getPageTitle(location.pathname);
+  const title = getNavigationItem(location.pathname).title;
 
   return (
     <div className={isSidebarOpen ? "admin-shell is-sidebar-open" : "admin-shell"}>
@@ -55,17 +35,24 @@ export function AdminLayout() {
           </span>
         </div>
         <nav>
-          {navigationItems.map((item) => (
-            <PermissionGate key={item.label} permission={item.permission ?? ""}>
-              <NavLink
-                end={item.to === "/admin"}
-                to={item.to}
-                onClick={() => setIsSidebarOpen(false)}
-              >
-                <CmsIcon name={item.icon} />
-                {item.label}
-              </NavLink>
-            </PermissionGate>
+          {navigationSections.map((section) => (
+            <div className="nav-section" key={section.id}>
+              <p>{section.label}</p>
+              {navigationItems
+                .filter((item) => item.section === section.id)
+                .map((item) => (
+                  <PermissionGate key={item.label} permission={item.permission ?? ""}>
+                    <NavLink
+                      end={item.to === "/admin"}
+                      to={item.to}
+                      onClick={() => setIsSidebarOpen(false)}
+                    >
+                      <CmsIcon name={item.icon} />
+                      {item.label}
+                    </NavLink>
+                  </PermissionGate>
+                ))}
+            </div>
           ))}
         </nav>
       </aside>
@@ -106,20 +93,4 @@ export function AdminLayout() {
       </div>
     </div>
   );
-}
-
-function getPageTitle(pathname: string) {
-  if (pathname.startsWith("/admin/users")) {
-    return "Users";
-  }
-
-  if (pathname.startsWith("/admin/roles")) {
-    return "Roles";
-  }
-
-  if (pathname.startsWith("/admin/profile")) {
-    return "Profile";
-  }
-
-  return "Dashboard";
 }
