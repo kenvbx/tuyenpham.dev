@@ -27,6 +27,9 @@ yarn-error.log*
 .vscode/
 
 # Generated local outputs
+CMS_TASK_TRACKING.md
+docs/
+outputs/
 outputs/**/~$*
 outputs/**/*.png
 outputs/**/*.inspect.ndjson
