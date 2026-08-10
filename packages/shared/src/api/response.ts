@@ -6,6 +6,12 @@ export const apiErrorSchema = z.object({
   details: z.unknown().optional(),
 });
 
+export const apiValidationIssueSchema = z.object({
+  code: z.string().min(1),
+  message: z.string().min(1),
+  path: z.string().min(1),
+});
+
 export const paginationSchema = z.object({
   page: z.number().int().positive(),
   perPage: z.number().int().positive(),
@@ -22,6 +28,7 @@ export const listQuerySchema = z.object({
 });
 
 export type ApiError = z.infer<typeof apiErrorSchema>;
+export type ApiValidationIssue = z.infer<typeof apiValidationIssueSchema>;
 export type Pagination = z.infer<typeof paginationSchema>;
 export type ListQuery = z.infer<typeof listQuerySchema>;
 
@@ -37,3 +44,32 @@ export type ApiListResponse<TData> = {
 export type ApiErrorResponse = {
   error: ApiError;
 };
+
+export type ApiValidationErrorDetails = {
+  fields: ApiValidationIssue[];
+};
+
+export function createApiSuccessResponse<TData>(data: TData): ApiSuccessResponse<TData> {
+  return { data };
+}
+
+export function createPagination(params: Omit<Pagination, "pageCount">): Pagination {
+  return {
+    ...params,
+    pageCount: Math.ceil(params.total / params.perPage),
+  };
+}
+
+export function createApiListResponse<TData>(
+  data: TData[],
+  pagination: Pagination,
+): ApiListResponse<TData> {
+  return {
+    data,
+    pagination,
+  };
+}
+
+export function createApiErrorResponse(error: ApiError): ApiErrorResponse {
+  return { error };
+}
