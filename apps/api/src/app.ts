@@ -1,6 +1,8 @@
 import type { HealthResponse } from "@cms/shared";
 import express, { type Express, type Request, type Response } from "express";
 
+import { errorHandler, notFoundHandler } from "./http/error-handler.js";
+
 export function createApp(): Express {
   const app = express();
 
@@ -16,6 +18,9 @@ export function createApp(): Express {
 
     response.status(200).json(health);
   });
+
+  app.use(notFoundHandler);
+  app.use(errorHandler);
 
   return app;
 }
