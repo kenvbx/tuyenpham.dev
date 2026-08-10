@@ -356,7 +356,7 @@ select {
   color: #1d4ed8;
 }
 
-.module-header,
+.page-header,
 .toolbar,
 .pagination,
 .row-actions {
@@ -372,13 +372,13 @@ select {
   padding: 28px;
 }
 
-.module-header {
+.page-header {
   justify-content: space-between;
   gap: 16px;
 }
 
 .profile-form p,
-.module-header p,
+.page-header p,
 .user-form p {
   margin: 0;
   color: #64748b;
@@ -386,10 +386,17 @@ select {
 }
 
 .profile-form h3,
-.module-header h2,
+.page-header h2,
 .user-form h3 {
   margin: 4px 0 0;
   letter-spacing: 0;
+}
+
+.page-header-actions,
+.page-header-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .toolbar {
@@ -696,7 +703,7 @@ select {
 
 @media (max-width: 540px) {
   .admin-topbar,
-  .module-header,
+  .page-header,
   .toolbar {
     align-items: flex-start;
     flex-direction: column;

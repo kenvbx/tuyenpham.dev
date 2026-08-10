@@ -2,6 +2,7 @@ import { Button, Card, Input } from "@cms/ui";
 import { type FormEvent, useState } from "react";
 
 import { useAuth } from "../auth/auth-context";
+import { PageHeader } from "../components/PageHeader";
 import { updateCurrentProfile } from "../lib/api";
 import { supabase } from "../lib/supabase";
 
@@ -79,12 +80,7 @@ export function ProfilePage() {
 
   return (
     <section className="profile-page">
-      <div className="module-header">
-        <div>
-          <p>Account</p>
-          <h2>Profile</h2>
-        </div>
-      </div>
+      <PageHeader eyebrow="Account" title="Profile" />
 
       <div className="profile-layout">
         <Card className="form-panel">

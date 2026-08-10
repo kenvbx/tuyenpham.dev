@@ -5,6 +5,7 @@ import { type FormEvent, useMemo, useState } from "react";
 
 import { PermissionGate } from "../auth/PermissionGate";
 import { useAuth } from "../auth/auth-context";
+import { PageHeader } from "../components/PageHeader";
 import {
   createRole,
   deleteRole,
@@ -86,18 +87,18 @@ export function RolesPage() {
 
   return (
     <section className="roles-page">
-      <div className="module-header">
-        <div>
-          <p>System</p>
-          <h2>Role management</h2>
-        </div>
-        <PermissionGate permission={Permission.ROLES_CREATE}>
-          <Button onClick={() => setForm(emptyForm)}>
-            <CmsIcon name="plus" />
-            New role
-          </Button>
-        </PermissionGate>
-      </div>
+      <PageHeader
+        eyebrow="System"
+        title="Role management"
+        actions={
+          <PermissionGate permission={Permission.ROLES_CREATE}>
+            <Button onClick={() => setForm(emptyForm)}>
+              <CmsIcon name="plus" />
+              New role
+            </Button>
+          </PermissionGate>
+        }
+      />
 
       {error && (
         <p className="form-alert" role="alert">

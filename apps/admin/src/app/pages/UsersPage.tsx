@@ -5,6 +5,7 @@ import { type FormEvent, useMemo, useState } from "react";
 
 import { PermissionGate } from "../auth/PermissionGate";
 import { useAuth } from "../auth/auth-context";
+import { PageHeader } from "../components/PageHeader";
 import {
   createUser,
   disableUser,
@@ -123,18 +124,18 @@ export function UsersPage() {
 
   return (
     <section className="users-page">
-      <div className="module-header">
-        <div>
-          <p>System</p>
-          <h2>User management</h2>
-        </div>
-        <PermissionGate permission={Permission.USERS_CREATE}>
-          <Button onClick={() => setForm(emptyForm)}>
-            <CmsIcon name="plus" />
-            New user
-          </Button>
-        </PermissionGate>
-      </div>
+      <PageHeader
+        eyebrow="System"
+        title="User management"
+        actions={
+          <PermissionGate permission={Permission.USERS_CREATE}>
+            <Button onClick={() => setForm(emptyForm)}>
+              <CmsIcon name="plus" />
+              New user
+            </Button>
+          </PermissionGate>
+        }
+      />
 
       <form className="toolbar" onSubmit={handleSearch}>
         <label className="search-field">
