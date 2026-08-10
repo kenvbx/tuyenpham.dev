@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { AuthService } from "../auth/auth.service.js";
 import type { AuthenticatedUser } from "../auth/auth.types.js";
+import type { AuditService } from "../audit/audit.service.js";
 import type { PermissionService } from "../auth/permission.service.js";
 import type { PermissionContext } from "../auth/permission.types.js";
 import { errorHandler } from "../http/error-handler.js";
@@ -38,6 +39,9 @@ const permissionId = "10000000-0000-4000-8000-000000000021";
 
 function createTestApp(roles: RoleService) {
   const app = express();
+  const audit = {
+    log: vi.fn(async () => undefined),
+  } as unknown as AuditService;
   const auth = {
     verifyAuthorizationHeader: vi.fn(async () => authUser),
   } as unknown as AuthService;
@@ -47,7 +51,7 @@ function createTestApp(roles: RoleService) {
   } as unknown as PermissionService;
 
   app.use(express.json());
-  app.use("/admin/roles", createRoleRouter({ auth, permissions, roles }));
+  app.use("/admin/roles", createRoleRouter({ audit, auth, permissions, roles }));
   app.use(errorHandler);
 
   return app;

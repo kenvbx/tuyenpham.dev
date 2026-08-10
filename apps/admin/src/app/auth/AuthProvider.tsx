@@ -2,7 +2,7 @@ import type { Session } from "@supabase/supabase-js";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 import { hasSupabaseConfig } from "../config/env";
-import { ApiClientError, getCurrentUser, type CurrentUser } from "../lib/api";
+import { ApiClientError, getCurrentUser, logAuthEvent, type CurrentUser } from "../lib/api";
 import { supabase } from "../lib/supabase";
 import { AuthContext, type AuthContextValue, type AuthStatus } from "./auth-context";
 
@@ -89,6 +89,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       await loadCurrentUser(data.session);
+
+      if (data.session?.access_token) {
+        await logAuthEvent(data.session.access_token, "login");
+      }
     },
     [loadCurrentUser],
   );
@@ -98,6 +102,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadCurrentUser, session]);
 
   const signOut = useCallback(async () => {
+    if (session?.access_token) {
+      await logAuthEvent(session.access_token, "logout");
+    }
+
     if (supabase) {
       await supabase.auth.signOut();
     }
@@ -106,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     setSession(null);
     setStatus("unauthenticated");
-  }, []);
+  }, [session]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

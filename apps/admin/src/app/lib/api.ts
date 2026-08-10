@@ -171,6 +171,14 @@ export async function updateCurrentProfile(token: string, input: CurrentProfileI
   return response.data;
 }
 
+export async function logAuthEvent(token: string, action: "login" | "logout") {
+  await apiRequest<void>("/auth/events", {
+    body: { action },
+    method: "POST",
+    token,
+  });
+}
+
 export async function listUsers(token: string, filters: UserListFilters) {
   const params = new URLSearchParams({
     page: String(filters.page),

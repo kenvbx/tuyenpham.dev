@@ -7,6 +7,7 @@ import {
 import { Router, type Router as ExpressRouter } from "express";
 import { z } from "zod";
 
+import { auditService, type AuditService } from "../audit/audit.service.js";
 import { authService, type AuthService } from "../auth/auth.service.js";
 import { requireAuth } from "../auth/auth.middleware.js";
 import { permissionService, type PermissionService } from "../auth/permission.service.js";
@@ -41,6 +42,7 @@ const userParamsSchema = z.object({
 });
 
 export type UserRouterOptions = {
+  audit?: AuditService;
   auth?: AuthService;
   permissions?: PermissionService;
   users?: UserService;
@@ -48,6 +50,7 @@ export type UserRouterOptions = {
 
 export function createUserRouter(options: UserRouterOptions = {}): ExpressRouter {
   const router = Router();
+  const audit = options.audit ?? auditService;
   const auth = options.auth ?? authService;
   const permissions = options.permissions ?? permissionService;
   const users = options.users ?? userService;
@@ -80,6 +83,17 @@ export function createUserRouter(options: UserRouterOptions = {}): ExpressRouter
       try {
         const body = createUserBodySchema.parse(request.body);
         const user = await users.createUser(body);
+        await audit.log({
+          action: "users.create",
+          actorId: request.auth?.user.id ?? null,
+          afterData: { roleIds: body.roleIds, status: user.status },
+          entityId: user.id,
+          entityType: "profile",
+          ipAddress: request.ip,
+          metadata: { email: user.email },
+          requestId: request.header("x-request-id") ?? null,
+          userAgent: request.header("user-agent") ?? null,
+        });
 
         response.status(201).json({
           data: user,
@@ -99,6 +113,17 @@ export function createUserRouter(options: UserRouterOptions = {}): ExpressRouter
         const params = userParamsSchema.parse(request.params);
         const body = updateUserBodySchema.parse(request.body);
         const user = await users.updateUser(params.userId, body);
+        await audit.log({
+          action: body.roleIds ? "user_roles.update" : "users.update",
+          actorId: request.auth?.user.id ?? null,
+          afterData: { roleIds: body.roleIds, status: user.status },
+          entityId: user.id,
+          entityType: "profile",
+          ipAddress: request.ip,
+          metadata: { email: user.email },
+          requestId: request.header("x-request-id") ?? null,
+          userAgent: request.header("user-agent") ?? null,
+        });
 
         response.json({
           data: user,
@@ -117,6 +142,17 @@ export function createUserRouter(options: UserRouterOptions = {}): ExpressRouter
       try {
         const params = userParamsSchema.parse(request.params);
         const user = await users.disableUser(params.userId);
+        await audit.log({
+          action: "users.disable",
+          actorId: request.auth?.user.id ?? null,
+          afterData: { status: user.status },
+          entityId: user.id,
+          entityType: "profile",
+          ipAddress: request.ip,
+          metadata: { email: user.email },
+          requestId: request.header("x-request-id") ?? null,
+          userAgent: request.header("user-agent") ?? null,
+        });
 
         response.json({
           data: user,

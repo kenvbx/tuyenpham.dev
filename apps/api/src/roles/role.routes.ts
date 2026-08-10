@@ -7,6 +7,7 @@ import {
 import { Router, type Router as ExpressRouter } from "express";
 import { z } from "zod";
 
+import { auditService, type AuditService } from "../audit/audit.service.js";
 import { authService, type AuthService } from "../auth/auth.service.js";
 import { requireAuth } from "../auth/auth.middleware.js";
 import { permissionService, type PermissionService } from "../auth/permission.service.js";
@@ -39,6 +40,7 @@ const roleParamsSchema = z.object({
 });
 
 export type RoleRouterOptions = {
+  audit?: AuditService;
   auth?: AuthService;
   permissions?: PermissionService;
   roles?: RoleService;
@@ -46,6 +48,7 @@ export type RoleRouterOptions = {
 
 export function createRoleRouter(options: RoleRouterOptions = {}): ExpressRouter {
   const router = Router();
+  const audit = options.audit ?? auditService;
   const auth = options.auth ?? authService;
   const permissions = options.permissions ?? permissionService;
   const roles = options.roles ?? roleService;
@@ -93,6 +96,17 @@ export function createRoleRouter(options: RoleRouterOptions = {}): ExpressRouter
       try {
         const body = roleBodySchema.parse(request.body);
         const role = await roles.createRole(body);
+        await audit.log({
+          action: "roles.create",
+          actorId: request.auth?.user.id ?? null,
+          afterData: { permissionIds: body.permissionIds },
+          entityId: role.id,
+          entityType: "role",
+          ipAddress: request.ip,
+          metadata: { slug: role.slug },
+          requestId: request.header("x-request-id") ?? null,
+          userAgent: request.header("user-agent") ?? null,
+        });
 
         response.status(201).json({ data: role });
       } catch (error) {
@@ -110,6 +124,17 @@ export function createRoleRouter(options: RoleRouterOptions = {}): ExpressRouter
         const params = roleParamsSchema.parse(request.params);
         const body = updateRoleBodySchema.parse(request.body);
         const role = await roles.updateRole(params.roleId, body);
+        await audit.log({
+          action: body.permissionIds ? "role_permissions.update" : "roles.update",
+          actorId: request.auth?.user.id ?? null,
+          afterData: { permissionIds: body.permissionIds },
+          entityId: role.id,
+          entityType: "role",
+          ipAddress: request.ip,
+          metadata: { slug: role.slug },
+          requestId: request.header("x-request-id") ?? null,
+          userAgent: request.header("user-agent") ?? null,
+        });
 
         response.json({ data: role });
       } catch (error) {
@@ -126,6 +151,15 @@ export function createRoleRouter(options: RoleRouterOptions = {}): ExpressRouter
       try {
         const params = roleParamsSchema.parse(request.params);
         await roles.deleteRole(params.roleId);
+        await audit.log({
+          action: "roles.delete",
+          actorId: request.auth?.user.id ?? null,
+          entityId: params.roleId,
+          entityType: "role",
+          ipAddress: request.ip,
+          requestId: request.header("x-request-id") ?? null,
+          userAgent: request.header("user-agent") ?? null,
+        });
 
         response.status(204).send();
       } catch (error) {

@@ -3,6 +3,7 @@ import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "../http/error-handler.js";
+import type { AuditService } from "../audit/audit.service.js";
 import { HttpError } from "../http/http-error.js";
 import type { AuthenticatedUser } from "./auth.types.js";
 import { createAuthRouter } from "./auth.routes.js";
@@ -46,12 +47,16 @@ const context: PermissionContext = {
 };
 
 function createTestApp({
+  audit = {
+    log: vi.fn(async () => undefined),
+  } as unknown as AuditService,
   auth,
   permissions,
   profile = {
     updateCurrentProfile: vi.fn(async () => null),
   } as unknown as ProfileService,
 }: {
+  audit?: AuditService;
   auth: AuthService;
   permissions: PermissionService;
   profile?: ProfileService;
@@ -59,7 +64,7 @@ function createTestApp({
   const app = express();
 
   app.use(express.json());
-  app.use("/auth", createAuthRouter({ auth, permissions, profile }));
+  app.use("/auth", createAuthRouter({ audit, auth, permissions, profile }));
   app.use(errorHandler);
 
   return app;
@@ -137,5 +142,32 @@ describe("auth routes", () => {
       firstName: "Updated",
     });
     expect(response.body.data.profile.email).toBe("admin@example.com");
+  });
+
+  it("records auth events", async () => {
+    const audit = {
+      log: vi.fn(async () => undefined),
+    } as unknown as AuditService;
+    const auth = {
+      verifyAuthorizationHeader: vi.fn(async () => user),
+    } as unknown as AuthService;
+    const permissions = {
+      resolveUserContext: vi.fn(async () => context),
+    } as unknown as PermissionService;
+
+    await request(createTestApp({ audit, auth, permissions }))
+      .post("/auth/events")
+      .set("Authorization", "Bearer valid-token")
+      .send({ action: "login" })
+      .expect(204);
+
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "auth.login",
+        actorId: user.id,
+        entityId: user.id,
+        entityType: "auth_session",
+      }),
+    );
   });
 });
