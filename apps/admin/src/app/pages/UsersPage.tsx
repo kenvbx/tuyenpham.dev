@@ -7,6 +7,7 @@ import { PermissionGate } from "../auth/PermissionGate";
 import { useAuth } from "../auth/auth-context";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
 import { PageHeader } from "../components/PageHeader";
+import { useToast } from "../components/toast-context";
 import { ValidationSummary } from "../components/ValidationSummary";
 import {
   createUser,
@@ -37,6 +38,7 @@ const emptyForm: UserFormState = {
 
 export function UsersPage() {
   const auth = useAuth();
+  const { notify } = useToast();
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState({ page: 1, perPage: 10, search: "", status: "" });
   const [form, setForm] = useState<UserFormState>(emptyForm);
@@ -80,12 +82,14 @@ export function UsersPage() {
     onSuccess: async () => {
       setForm(emptyForm);
       await queryClient.invalidateQueries({ queryKey: ["users"] });
+      notify({ message: "User record has been saved.", title: "User saved", variant: "success" });
     },
   });
   const disableUserMutation = useMutation({
     mutationFn: (userId: string) => disableUser(token, userId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["users"] });
+      notify({ message: "User has been disabled.", title: "User disabled", variant: "success" });
     },
   });
   const bulkDisableUsersMutation = useMutation({
@@ -94,6 +98,11 @@ export function UsersPage() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["users"] });
+      notify({
+        message: "Selected users have been disabled.",
+        title: "Bulk action complete",
+        variant: "success",
+      });
     },
   });
 

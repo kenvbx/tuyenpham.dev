@@ -7,6 +7,7 @@ import { PermissionGate } from "../auth/PermissionGate";
 import { useAuth } from "../auth/auth-context";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
 import { PageHeader } from "../components/PageHeader";
+import { useToast } from "../components/toast-context";
 import { ValidationSummary } from "../components/ValidationSummary";
 import {
   createRole,
@@ -34,6 +35,7 @@ const emptyForm: RoleFormState = {
 
 export function RolesPage() {
   const auth = useAuth();
+  const { notify } = useToast();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<RoleFormState>(emptyForm);
   const token = auth.token ?? "";
@@ -53,12 +55,18 @@ export function RolesPage() {
     onSuccess: async () => {
       setForm(emptyForm);
       await queryClient.invalidateQueries({ queryKey: ["roles"] });
+      notify({
+        message: "Role definition has been saved.",
+        title: "Role saved",
+        variant: "success",
+      });
     },
   });
   const deleteRoleMutation = useMutation({
     mutationFn: (roleId: string) => deleteRole(token, roleId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["roles"] });
+      notify({ message: "Role has been deleted.", title: "Role deleted", variant: "success" });
     },
   });
   const bulkDeleteRolesMutation = useMutation({
@@ -67,6 +75,11 @@ export function RolesPage() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["roles"] });
+      notify({
+        message: "Selected roles have been deleted.",
+        title: "Bulk action complete",
+        variant: "success",
+      });
     },
   });
 
