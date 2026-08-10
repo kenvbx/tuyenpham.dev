@@ -1,5 +1,7 @@
-import { Button, CmsIcon, EmptyState, Input } from "@cms/ui";
+import { Button, CmsIcon, Input } from "@cms/ui";
 import { type FormEvent, type ReactNode, useMemo, useState } from "react";
+
+import { EmptyPageState, LoadingState } from "./PageState";
 
 export type DataTableColumn<TRow> = {
   align?: "left" | "right";
@@ -140,9 +142,9 @@ export function DataTable<TRow>({
       )}
 
       {isLoading ? (
-        <EmptyState title={loadingTitle} description={loadingDescription} />
+        <LoadingState title={loadingTitle} description={loadingDescription} />
       ) : sortedData.length === 0 ? (
-        <EmptyState title={emptyTitle} description={emptyDescription} />
+        <EmptyPageState title={emptyTitle} description={emptyDescription} />
       ) : (
         <div className="table-scroll">
           <table className="data-table">

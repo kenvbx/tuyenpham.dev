@@ -6,9 +6,9 @@ import { type FormEvent, useMemo, useState } from "react";
 import { PermissionGate } from "../auth/PermissionGate";
 import { useAuth } from "../auth/auth-context";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
+import { ErrorState } from "../components/PageState";
 import { PageHeader } from "../components/PageHeader";
 import { useToast } from "../components/toast-context";
-import { ValidationSummary } from "../components/ValidationSummary";
 import {
   createRole,
   deleteRole,
@@ -179,7 +179,7 @@ export function RolesPage() {
         }
       />
 
-      {error && <ValidationSummary error={error} fallback="Unable to load roles." />}
+      {error && <ErrorState error={error} fallback="Unable to load roles." />}
 
       <div className="roles-layout">
         <Card className="table-panel">
