@@ -173,6 +173,13 @@ export type MediaListFilters = {
   type?: "document" | "image" | undefined;
 };
 
+export type MediaUpdateInput = {
+  alt?: string | null | undefined;
+  caption?: string | null | undefined;
+  folderId?: string | null | undefined;
+  name?: string | undefined;
+};
+
 type RequestOptions = {
   body?: unknown;
   method?: "DELETE" | "GET" | "PATCH" | "POST";
@@ -322,6 +329,16 @@ export async function trashMediaFile(token: string, fileId: string) {
   return response.data;
 }
 
+export async function updateMediaFile(token: string, fileId: string, input: MediaUpdateInput) {
+  const response = await apiRequest<ApiSuccessResponse<AdminMediaFile>>(`/admin/media/${fileId}`, {
+    body: cleanMediaPayload(input),
+    method: "PATCH",
+    token,
+  });
+
+  return response.data;
+}
+
 export async function listUsers(token: string, filters: UserListFilters) {
   const params = new URLSearchParams({
     page: String(filters.page),
@@ -428,6 +445,12 @@ function cleanUserPayload(input: UserFormInput | UserUpdateInput) {
 
 function cleanRolePayload(input: RoleFormInput) {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== ""));
+}
+
+function cleanMediaPayload(input: MediaUpdateInput) {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => value !== "" && value !== undefined),
+  );
 }
 
 function cleanProfilePayload(input: CurrentProfileInput) {

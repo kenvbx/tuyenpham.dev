@@ -38,6 +38,10 @@ const fileId = "10000000-0000-4000-8000-000000000050";
 const folderId = "10000000-0000-4000-8000-000000000060";
 
 function createTestApp(media: MediaService) {
+  return createTestHarness(media).app;
+}
+
+function createTestHarness(media: MediaService) {
   const app = express();
   const audit = {
     log: vi.fn(async () => undefined),
@@ -54,7 +58,7 @@ function createTestApp(media: MediaService) {
   app.use("/admin/media", createMediaRouter({ audit, auth, media, permissions }));
   app.use(errorHandler);
 
-  return app;
+  return { app, audit };
 }
 
 function mediaFileResponse() {
@@ -170,8 +174,9 @@ describe("media routes", () => {
     const media = {
       uploadFile: vi.fn(async () => mediaFileResponse()),
     } as unknown as MediaService;
+    const { app, audit } = createTestHarness(media);
 
-    const response = await request(createTestApp(media))
+    const response = await request(app)
       .post("/admin/media/upload")
       .set("Authorization", "Bearer token")
       .attach("file", pngBuffer(), "pixel.png")
@@ -188,6 +193,14 @@ describe("media routes", () => {
         mimeType: "image/png",
         originalName: "pixel.png",
         uploadedBy: user.id,
+      }),
+    );
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "media.upload",
+        actorId: user.id,
+        entityId: fileId,
+        entityType: "media_file",
       }),
     );
   });
@@ -233,6 +246,28 @@ describe("media routes", () => {
     expect(media.updateFile).toHaveBeenCalledWith(fileId, { alt: "Pixel" });
   });
 
+  it("audits media metadata updates", async () => {
+    const media = {
+      updateFile: vi.fn(async () => ({ ...mediaFileResponse(), alt: "Pixel" })),
+    } as unknown as MediaService;
+    const { app, audit } = createTestHarness(media);
+
+    await request(app)
+      .patch(`/admin/media/${fileId}`)
+      .set("Authorization", "Bearer token")
+      .send({ alt: "Pixel" })
+      .expect(200);
+
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "media.update",
+        actorId: user.id,
+        entityId: fileId,
+        entityType: "media_file",
+      }),
+    );
+  });
+
   it("trashes media files by default", async () => {
     const media = {
       trashFile: vi.fn(async () => ({ ...mediaFileResponse(), status: "trashed" })),
@@ -251,13 +286,22 @@ describe("media routes", () => {
     const media = {
       deleteFile: vi.fn(async () => undefined),
     } as unknown as MediaService;
+    const { app, audit } = createTestHarness(media);
 
-    await request(createTestApp(media))
+    await request(app)
       .delete(`/admin/media/${fileId}?hard=true`)
       .set("Authorization", "Bearer token")
       .expect(204);
 
     expect(media.deleteFile).toHaveBeenCalledWith(fileId);
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "media.delete",
+        actorId: user.id,
+        entityId: fileId,
+        entityType: "media_file",
+      }),
+    );
   });
 });
 

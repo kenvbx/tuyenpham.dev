@@ -87,6 +87,27 @@ describe("MediaService", () => {
       statusCode: 415,
     });
   });
+
+  it("requires alt text when image metadata is updated", async () => {
+    const maybeSingle = vi.fn(async () => ({ data: mediaRow, error: null }));
+    const query = {
+      eq: vi.fn(() => query),
+      maybeSingle,
+      neq: vi.fn(() => query),
+      select: vi.fn(() => query),
+    };
+    const service = new MediaService({
+      client: {
+        from: vi.fn(() => query),
+        storage: { from: vi.fn() },
+      },
+    });
+
+    await expect(service.updateFile(mediaRow.id, { alt: "" })).rejects.toMatchObject<HttpError>({
+      code: "media_alt_required",
+      statusCode: 422,
+    });
+  });
 });
 
 function pngBuffer() {

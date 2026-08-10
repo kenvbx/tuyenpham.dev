@@ -353,7 +353,18 @@ export class MediaService {
   }
 
   async updateFile(fileId: string, input: UpdateMediaInput): Promise<MediaFile> {
-    await this.loadFileById(fileId);
+    const existingFile = await this.loadFileById(fileId);
+
+    if (
+      existingFile.mime_type.startsWith("image/") &&
+      input.alt !== undefined &&
+      String(input.alt ?? "").trim().length === 0
+    ) {
+      throw new HttpError("Image alt text is required.", {
+        code: "media_alt_required",
+        statusCode: 422,
+      });
+    }
 
     const patch = {
       ...(input.alt !== undefined ? { alt: input.alt } : {}),

@@ -6,6 +6,8 @@ import { type DragEvent, type FormEvent, useMemo, useRef, useState } from "react
 import { PermissionGate } from "../auth/PermissionGate";
 import { useAuth } from "../auth/auth-context";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
+import { Drawer } from "../components/Drawer";
+import { MediaPickerModal } from "../components/MediaPickerModal";
 import { ErrorState, LoadingState } from "../components/PageState";
 import { PageHeader } from "../components/PageHeader";
 import { useToast } from "../components/toast-context";
@@ -13,9 +15,11 @@ import {
   listMediaFiles,
   listMediaFolders,
   trashMediaFile,
+  updateMediaFile,
   uploadMediaFile,
   type AdminMediaFile,
   type AdminMediaFolder,
+  type MediaUpdateInput,
 } from "../lib/api";
 
 type MediaFilters = {
@@ -43,6 +47,8 @@ export function MediaPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [filters, setFilters] = useState<MediaFilters>(initialFilters);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [selectedFile, setSelectedFile] = useState<AdminMediaFile | null>(null);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const token = auth.token ?? "";
   const mediaQueryKey = ["media", "files", filters];
@@ -86,6 +92,19 @@ export function MediaPage() {
       notify({ message: "Media file moved to trash.", title: "Media trashed", variant: "success" });
     },
   });
+  const updateMutation = useMutation({
+    mutationFn: ({ fileId, input }: { fileId: string; input: MediaUpdateInput }) =>
+      updateMediaFile(token, fileId, input),
+    onSuccess: async (file) => {
+      setSelectedFile(file);
+      await queryClient.invalidateQueries({ queryKey: ["media", "files"] });
+      notify({
+        message: "Media metadata has been saved.",
+        title: "Media saved",
+        variant: "success",
+      });
+    },
+  });
 
   const folders = useMemo(() => foldersQuery.data ?? [], [foldersQuery.data]);
   const files = mediaQuery.data?.data ?? [];
@@ -96,7 +115,11 @@ export function MediaPage() {
       ? "Root"
       : (folders.find((folder) => folder.id === filters.folderId)?.name ?? "All media");
   const error =
-    foldersQuery.error ?? mediaQuery.error ?? uploadMutation.error ?? trashMutation.error;
+    foldersQuery.error ??
+    mediaQuery.error ??
+    uploadMutation.error ??
+    trashMutation.error ??
+    updateMutation.error;
   const columns: DataTableColumn<AdminMediaFile>[] = [
     {
       header: "File",
@@ -133,6 +156,15 @@ export function MediaPage() {
       id: "actions",
       render: (file) => (
         <div className="row-actions">
+          <PermissionGate permission={Permission.MEDIA_EDIT}>
+            <button
+              aria-label={`View ${file.name}`}
+              type="button"
+              onClick={() => setSelectedFile(file)}
+            >
+              <CmsIcon name="edit" />
+            </button>
+          </PermissionGate>
           <PermissionGate permission={Permission.MEDIA_DELETE}>
             <button
               aria-label={`Trash ${file.name}`}
@@ -177,12 +209,18 @@ export function MediaPage() {
         eyebrow="Content"
         title="Media library"
         actions={
-          <PermissionGate permission={Permission.MEDIA_UPLOAD}>
-            <Button type="button" onClick={() => fileInputRef.current?.click()}>
-              <CmsIcon name="plus" />
-              Upload
+          <>
+            <Button type="button" variant="secondary" onClick={() => setIsPickerOpen(true)}>
+              <CmsIcon name="media" />
+              Picker
             </Button>
-          </PermissionGate>
+            <PermissionGate permission={Permission.MEDIA_UPLOAD}>
+              <Button type="button" onClick={() => fileInputRef.current?.click()}>
+                <CmsIcon name="plus" />
+                Upload
+              </Button>
+            </PermissionGate>
+          </>
         }
       />
 
@@ -322,6 +360,7 @@ export function MediaPage() {
               <MediaGrid
                 files={files}
                 isTrashing={trashMutation.isPending}
+                onInspect={setSelectedFile}
                 onPageChange={(page) => setFilters((current) => ({ ...current, page }))}
                 onTrash={(fileId) => trashMutation.mutate(fileId)}
                 pagination={pagination}
@@ -330,6 +369,26 @@ export function MediaPage() {
           </Card>
         </div>
       </div>
+      <MediaDetailDrawer
+        file={selectedFile}
+        folders={folders}
+        isSaving={updateMutation.isPending}
+        onClose={() => setSelectedFile(null)}
+        onSave={(fileId, input) => updateMutation.mutate({ fileId, input })}
+      />
+      <MediaPickerModal
+        isOpen={isPickerOpen}
+        token={token}
+        onClose={() => setIsPickerOpen(false)}
+        onSelect={(file) => {
+          setSelectedFile(file);
+          notify({
+            message: file.name,
+            title: "Media selected",
+            variant: "success",
+          });
+        }}
+      />
     </section>
   );
 }
@@ -419,12 +478,14 @@ function FolderButton({
 function MediaGrid({
   files,
   isTrashing,
+  onInspect,
   onPageChange,
   onTrash,
   pagination,
 }: {
   files: AdminMediaFile[];
   isTrashing: boolean;
+  onInspect: (file: AdminMediaFile) => void;
   onPageChange: (page: number) => void;
   onTrash: (fileId: string) => void;
   pagination: PaginationLike | undefined;
@@ -450,9 +511,18 @@ function MediaGrid({
               <strong>{file.name}</strong>
               <span>{formatSize(file.sizeBytes)}</span>
             </div>
+            <button
+              aria-label={`View ${file.name}`}
+              className="media-card-edit"
+              type="button"
+              onClick={() => onInspect(file)}
+            >
+              <CmsIcon name="edit" />
+            </button>
             <PermissionGate permission={Permission.MEDIA_DELETE}>
               <button
                 aria-label={`Trash ${file.name}`}
+                className="media-card-trash"
                 disabled={isTrashing}
                 type="button"
                 onClick={() => onTrash(file.id)}
@@ -488,6 +558,151 @@ function MediaGrid({
         </div>
       )}
     </>
+  );
+}
+
+function MediaDetailDrawer({
+  file,
+  folders,
+  isSaving,
+  onClose,
+  onSave,
+}: {
+  file: AdminMediaFile | null;
+  folders: AdminMediaFolder[];
+  isSaving: boolean;
+  onClose: () => void;
+  onSave: (fileId: string, input: MediaUpdateInput) => void;
+}) {
+  return (
+    <Drawer isOpen={Boolean(file)} title="Media details" onClose={onClose}>
+      {file && (
+        <MediaDetailForm
+          file={file}
+          folders={folders}
+          isSaving={isSaving}
+          key={file.id}
+          onClose={onClose}
+          onSave={onSave}
+        />
+      )}
+    </Drawer>
+  );
+}
+
+function MediaDetailForm({
+  file,
+  folders,
+  isSaving,
+  onClose,
+  onSave,
+}: {
+  file: AdminMediaFile;
+  folders: AdminMediaFolder[];
+  isSaving: boolean;
+  onClose: () => void;
+  onSave: (fileId: string, input: MediaUpdateInput) => void;
+}) {
+  const [form, setForm] = useState<MediaUpdateInput>({
+    alt: file.alt ?? "",
+    caption: file.caption ?? "",
+    folderId: file.folderId,
+    name: file.name,
+  });
+  const isImage = file.mimeType.startsWith("image/");
+  const isAltMissing = isImage && String(form.alt ?? "").trim().length === 0;
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (isAltMissing) {
+      return;
+    }
+
+    onSave(file.id, {
+      alt: form.alt ?? null,
+      caption: form.caption ?? null,
+      folderId: form.folderId ?? null,
+      name: form.name,
+    });
+  }
+
+  return (
+    <form className="media-detail" onSubmit={handleSubmit}>
+      <div className="media-detail-preview">
+        <MediaPreview file={file} />
+      </div>
+      <div className={isAltMissing ? "form-alert" : "form-alert form-alert--neutral"}>
+        <p>
+          {isAltMissing
+            ? "Image alt text is required before saving metadata."
+            : "Alt text is ready for accessibility and SEO."}
+        </p>
+      </div>
+      <label>
+        <span>Name</span>
+        <Input
+          value={form.name ?? ""}
+          onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+        />
+      </label>
+      <label>
+        <span>Alt text</span>
+        <Input
+          value={String(form.alt ?? "")}
+          onChange={(event) => setForm((current) => ({ ...current, alt: event.target.value }))}
+        />
+      </label>
+      <label>
+        <span>Caption</span>
+        <textarea
+          className="cms-textarea"
+          value={String(form.caption ?? "")}
+          onChange={(event) => setForm((current) => ({ ...current, caption: event.target.value }))}
+        />
+      </label>
+      <label>
+        <span>Folder</span>
+        <select
+          value={form.folderId ?? ""}
+          onChange={(event) =>
+            setForm((current) => ({
+              ...current,
+              folderId: event.target.value || null,
+            }))
+          }
+        >
+          <option value="">Root</option>
+          {folders.map((folder) => (
+            <option key={folder.id} value={folder.id}>
+              {folder.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <dl>
+        <div>
+          <dt>Type</dt>
+          <dd>{file.mimeType}</dd>
+        </div>
+        <div>
+          <dt>Size</dt>
+          <dd>{formatSize(file.sizeBytes)}</dd>
+        </div>
+        <div>
+          <dt>Dimensions</dt>
+          <dd>{file.width && file.height ? `${file.width} x ${file.height}` : "n/a"}</dd>
+        </div>
+      </dl>
+      <div className="drawer-actions">
+        <Button type="button" variant="secondary" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button disabled={isSaving || isAltMissing} type="submit">
+          {isSaving ? "Saving" : "Save"}
+        </Button>
+      </div>
+    </form>
   );
 }
 
