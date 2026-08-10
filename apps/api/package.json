@@ -9,11 +9,12 @@
     "start": "node dist/main.js",
     "lint": "eslint . --ext .ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "NODE_ENV=test APP_URL=http://localhost:4000 ADMIN_URL=http://localhost:5173 CORS_ORIGINS=http://localhost:5173 LOG_LEVEL=error vitest run src",
+    "test": "NODE_ENV=test APP_URL=http://localhost:4000 ADMIN_URL=http://localhost:5173 CORS_ORIGINS=http://localhost:5173 LOG_LEVEL=error SUPABASE_URL=https://project-ref.supabase.co SUPABASE_ANON_KEY=test-anon-key SUPABASE_SERVICE_ROLE_KEY=test-service-role-key vitest run src",
     "format": "prettier --write ."
   },
   "dependencies": {
     "@cms/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.112.2",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "zod": "^4.4.3"

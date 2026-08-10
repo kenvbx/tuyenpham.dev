@@ -30,9 +30,9 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().max(65535).default(DEFAULT_PORT),
-  SUPABASE_ANON_KEY: z.string().trim().optional(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().trim().optional(),
-  SUPABASE_URL: optionalUrlSchema,
+  SUPABASE_ANON_KEY: z.string().trim().min(1),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().trim().min(1),
+  SUPABASE_URL: z.string().trim().url(),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;
