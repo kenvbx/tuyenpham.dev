@@ -38,6 +38,25 @@ const listMediaQuerySchema = listQuerySchema.extend({
 const mediaParamsSchema = z.object({
   fileId: z.string().uuid(),
 });
+const folderParamsSchema = z.object({
+  folderId: z.string().uuid(),
+});
+const folderBodySchema = z.object({
+  color: z
+    .string()
+    .trim()
+    .regex(/^#[0-9a-fA-F]{6}$/u)
+    .nullable()
+    .optional(),
+  name: z.string().trim().min(1).max(120),
+  parentId: z.string().uuid().nullable().optional(),
+  slug: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u)
+    .optional(),
+});
+const updateFolderBodySchema = folderBodySchema.partial();
 const updateMediaBodySchema = z.object({
   alt: z.string().trim().max(255).nullable().optional(),
   caption: z.string().trim().max(1000).nullable().optional(),
@@ -73,6 +92,110 @@ export function createMediaRouter(options: MediaRouterOptions = {}): ExpressRout
         );
 
         response.json(body);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.get(
+    "/folders",
+    requireAuth(auth),
+    requirePermission(Permission.MEDIA_INDEX, permissions),
+    async (_request, response, next) => {
+      try {
+        const folders = await media.listFolders();
+
+        response.json(createApiSuccessResponse(folders));
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.post(
+    "/folders",
+    requireAuth(auth),
+    requirePermission(Permission.MEDIA_FOLDERS_CREATE, permissions),
+    async (request, response, next) => {
+      try {
+        const body = folderBodySchema.parse(request.body);
+        const folder = await media.createFolder({
+          ...body,
+          createdBy: request.auth?.user.id ?? null,
+        });
+
+        await audit.log({
+          action: "media_folders.create",
+          actorId: request.auth?.user.id ?? null,
+          afterData: body,
+          entityId: folder.id,
+          entityType: "media_folder",
+          ipAddress: request.ip,
+          metadata: { slug: folder.slug },
+          requestId: request.header("x-request-id") ?? null,
+          userAgent: request.header("user-agent") ?? null,
+        });
+
+        response.status(201).json(createApiSuccessResponse(folder));
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.patch(
+    "/folders/:folderId",
+    requireAuth(auth),
+    requirePermission(Permission.MEDIA_FOLDERS_EDIT, permissions),
+    async (request, response, next) => {
+      try {
+        const params = folderParamsSchema.parse(request.params);
+        const body = updateFolderBodySchema.parse(request.body);
+        const folder = await media.updateFolder(params.folderId, {
+          ...body,
+          updatedBy: request.auth?.user.id ?? null,
+        });
+
+        await audit.log({
+          action: "media_folders.update",
+          actorId: request.auth?.user.id ?? null,
+          afterData: body,
+          entityId: folder.id,
+          entityType: "media_folder",
+          ipAddress: request.ip,
+          metadata: { slug: folder.slug },
+          requestId: request.header("x-request-id") ?? null,
+          userAgent: request.header("user-agent") ?? null,
+        });
+
+        response.json(createApiSuccessResponse(folder));
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.delete(
+    "/folders/:folderId",
+    requireAuth(auth),
+    requirePermission(Permission.MEDIA_FOLDERS_DELETE, permissions),
+    async (request, response, next) => {
+      try {
+        const params = folderParamsSchema.parse(request.params);
+
+        await media.deleteFolder(params.folderId);
+        await audit.log({
+          action: "media_folders.delete",
+          actorId: request.auth?.user.id ?? null,
+          entityId: params.folderId,
+          entityType: "media_folder",
+          ipAddress: request.ip,
+          requestId: request.header("x-request-id") ?? null,
+          userAgent: request.header("user-agent") ?? null,
+        });
+
+        response.status(204).send();
       } catch (error) {
         next(error);
       }

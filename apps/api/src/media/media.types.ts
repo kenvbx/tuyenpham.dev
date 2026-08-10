@@ -24,6 +24,19 @@ export type MediaFile = {
   width: number | null;
 };
 
+export type MediaFolder = {
+  color: string | null;
+  createdAt: string;
+  createdBy: string | null;
+  deletedAt: string | null;
+  id: string;
+  name: string;
+  parentId: string | null;
+  slug: string;
+  updatedAt: string;
+  updatedBy: string | null;
+};
+
 export type UploadMediaInput = {
   alt?: string | undefined;
   buffer: Buffer;
@@ -33,6 +46,22 @@ export type UploadMediaInput = {
   originalName: string;
   sizeBytes: number;
   uploadedBy?: string | null | undefined;
+};
+
+export type CreateMediaFolderInput = {
+  color?: string | null | undefined;
+  createdBy?: string | null | undefined;
+  name: string;
+  parentId?: string | null | undefined;
+  slug?: string | undefined;
+};
+
+export type UpdateMediaFolderInput = {
+  color?: string | null | undefined;
+  name?: string | undefined;
+  parentId?: string | null | undefined;
+  slug?: string | undefined;
+  updatedBy?: string | null | undefined;
 };
 
 export type ListMediaParams = {

@@ -35,6 +35,7 @@ const context: PermissionContext = {
   roles: [],
 };
 const fileId = "10000000-0000-4000-8000-000000000050";
+const folderId = "10000000-0000-4000-8000-000000000060";
 
 function createTestApp(media: MediaService) {
   const app = express();
@@ -82,7 +83,89 @@ function mediaFileResponse() {
   };
 }
 
+function mediaFolderResponse() {
+  return {
+    color: "#1f6feb",
+    createdAt: "2026-08-10T00:00:00.000Z",
+    createdBy: user.id,
+    deletedAt: null,
+    id: folderId,
+    name: "Uploads",
+    parentId: null,
+    slug: "uploads",
+    updatedAt: "2026-08-10T00:00:00.000Z",
+    updatedBy: user.id,
+  };
+}
+
 describe("media routes", () => {
+  it("lists media folders", async () => {
+    const media = {
+      listFolders: vi.fn(async () => [mediaFolderResponse()]),
+    } as unknown as MediaService;
+
+    const response = await request(createTestApp(media))
+      .get("/admin/media/folders")
+      .set("Authorization", "Bearer token")
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      data: [{ id: folderId, slug: "uploads" }],
+    });
+    expect(media.listFolders).toHaveBeenCalledOnce();
+  });
+
+  it("creates media folders", async () => {
+    const media = {
+      createFolder: vi.fn(async () => mediaFolderResponse()),
+    } as unknown as MediaService;
+
+    const response = await request(createTestApp(media))
+      .post("/admin/media/folders")
+      .set("Authorization", "Bearer token")
+      .send({ color: "#1f6feb", name: "Uploads", slug: "uploads" })
+      .expect(201);
+
+    expect(response.body.data.slug).toBe("uploads");
+    expect(media.createFolder).toHaveBeenCalledWith({
+      color: "#1f6feb",
+      createdBy: user.id,
+      name: "Uploads",
+      slug: "uploads",
+    });
+  });
+
+  it("updates media folders", async () => {
+    const media = {
+      updateFolder: vi.fn(async () => ({ ...mediaFolderResponse(), name: "Images" })),
+    } as unknown as MediaService;
+
+    const response = await request(createTestApp(media))
+      .patch(`/admin/media/folders/${folderId}`)
+      .set("Authorization", "Bearer token")
+      .send({ name: "Images" })
+      .expect(200);
+
+    expect(response.body.data.name).toBe("Images");
+    expect(media.updateFolder).toHaveBeenCalledWith(folderId, {
+      name: "Images",
+      updatedBy: user.id,
+    });
+  });
+
+  it("deletes media folders", async () => {
+    const media = {
+      deleteFolder: vi.fn(async () => undefined),
+    } as unknown as MediaService;
+
+    await request(createTestApp(media))
+      .delete(`/admin/media/folders/${folderId}`)
+      .set("Authorization", "Bearer token")
+      .expect(204);
+
+    expect(media.deleteFolder).toHaveBeenCalledWith(folderId);
+  });
+
   it("uploads media files", async () => {
     const media = {
       uploadFile: vi.fn(async () => mediaFileResponse()),

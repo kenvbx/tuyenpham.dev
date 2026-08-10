@@ -7,8 +7,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { HttpError } from "../http/http-error.js";
 import { supabase } from "../supabase/client.js";
 import type {
+  CreateMediaFolderInput,
   ListMediaParams,
   MediaFile,
+  MediaFolder,
+  UpdateMediaFolderInput,
   UpdateMediaInput,
   UploadMediaInput,
 } from "./media.types.js";
@@ -78,6 +81,19 @@ type MediaFileRow = {
   width: number | null;
 };
 
+type MediaFolderRow = {
+  color: string | null;
+  created_at: string;
+  created_by: string | null;
+  deleted_at: string | null;
+  id: string;
+  name: string;
+  parent_id: string | null;
+  slug: string;
+  updated_at: string;
+  updated_by: string | null;
+};
+
 type ImageMetadata = {
   height: number | null;
   width: number | null;
@@ -86,6 +102,8 @@ type ImageMetadata = {
 const MEDIA_BUCKET = "cms-media";
 const MEDIA_SELECT =
   "id,folder_id,uploaded_by,name,original_name,alt,caption,mime_type,extension,size_bytes,width,height,duration_seconds,bucket,object_path,url,metadata,status,deleted_at,created_at,updated_at";
+const MEDIA_FOLDER_SELECT =
+  "id,name,slug,parent_id,color,created_by,updated_by,deleted_at,created_at,updated_at";
 const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 const MAX_DOCUMENT_SIZE_BYTES = 25 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Map([
@@ -169,6 +187,109 @@ export class MediaService {
     }
 
     return toMediaFile(result.data as MediaFileRow);
+  }
+
+  async listFolders(): Promise<MediaFolder[]> {
+    const result = (await this.from("media_folders")
+      .select(MEDIA_FOLDER_SELECT)
+      .is("deleted_at", null)
+      .order("name", { ascending: true })) as SupabaseQueryResult<MediaFolderRow[]>;
+
+    if (result.error) {
+      throw new HttpError("Unable to list media folders.", {
+        code: "media_folders_list_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    return (result.data ?? []).map(toMediaFolder);
+  }
+
+  async createFolder(input: CreateMediaFolderInput): Promise<MediaFolder> {
+    const slug = input.slug ?? slugify(input.name);
+    const result = await this.from("media_folders")
+      .insert({
+        color: input.color ?? null,
+        created_by: input.createdBy ?? null,
+        name: input.name,
+        parent_id: input.parentId ?? null,
+        slug,
+        updated_by: input.createdBy ?? null,
+      })
+      .select(MEDIA_FOLDER_SELECT)
+      .maybeSingle();
+
+    if (result.error) {
+      throw new HttpError("Unable to create media folder.", {
+        code: "media_folder_create_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    if (!result.data) {
+      throw new HttpError("Created media folder was not returned.", {
+        code: "media_folder_create_failed",
+        statusCode: 500,
+      });
+    }
+
+    return toMediaFolder(result.data as MediaFolderRow);
+  }
+
+  async updateFolder(folderId: string, input: UpdateMediaFolderInput): Promise<MediaFolder> {
+    await this.loadFolderById(folderId);
+
+    if (input.parentId === folderId) {
+      throw new HttpError("Media folder cannot be its own parent.", {
+        code: "media_folder_parent_invalid",
+        statusCode: 422,
+      });
+    }
+
+    const patch = {
+      ...(input.color !== undefined ? { color: input.color } : {}),
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.parentId !== undefined ? { parent_id: input.parentId } : {}),
+      ...(input.slug !== undefined ? { slug: input.slug } : {}),
+      ...(input.updatedBy !== undefined ? { updated_by: input.updatedBy } : {}),
+    };
+
+    if (Object.keys(patch).length > 0) {
+      const updateResult = await this.from("media_folders").update(patch).eq("id", folderId);
+
+      if (updateResult.error) {
+        throw new HttpError("Unable to update media folder.", {
+          code: "media_folder_update_failed",
+          details: { cause: updateResult.error.message },
+          statusCode: 500,
+        });
+      }
+    }
+
+    return this.getFolder(folderId);
+  }
+
+  async deleteFolder(folderId: string): Promise<void> {
+    await this.loadFolderById(folderId);
+    await this.assertFolderIsEmpty(folderId);
+
+    const result = await this.from("media_folders")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", folderId);
+
+    if (result.error) {
+      throw new HttpError("Unable to delete media folder.", {
+        code: "media_folder_delete_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+  }
+
+  async getFolder(folderId: string): Promise<MediaFolder> {
+    return toMediaFolder(await this.loadFolderById(folderId));
   }
 
   async listFiles(params: ListMediaParams) {
@@ -336,6 +457,73 @@ export class MediaService {
     }
 
     return result.data as MediaFileRow;
+  }
+
+  private async loadFolderById(folderId: string): Promise<MediaFolderRow> {
+    const result = await this.from("media_folders")
+      .select(MEDIA_FOLDER_SELECT)
+      .eq("id", folderId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (result.error) {
+      throw new HttpError("Unable to load media folder.", {
+        code: "media_folder_lookup_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    if (!result.data) {
+      throw new HttpError("Media folder was not found.", {
+        code: "media_folder_not_found",
+        statusCode: 404,
+      });
+    }
+
+    return result.data as MediaFolderRow;
+  }
+
+  private async assertFolderIsEmpty(folderId: string) {
+    const childFolders = (await this.from("media_folders")
+      .select("id", { count: "exact" })
+      .eq("parent_id", folderId)
+      .is("deleted_at", null)) as SupabaseQueryResult<unknown[]>;
+
+    if (childFolders.error) {
+      throw new HttpError("Unable to inspect media folder children.", {
+        code: "media_folder_children_lookup_failed",
+        details: { cause: childFolders.error.message },
+        statusCode: 500,
+      });
+    }
+
+    if ((childFolders.count ?? 0) > 0) {
+      throw new HttpError("Media folder still contains subfolders.", {
+        code: "media_folder_not_empty",
+        statusCode: 409,
+      });
+    }
+
+    const files = (await this.from("media_files")
+      .select("id", { count: "exact" })
+      .eq("folder_id", folderId)
+      .neq("status", "deleted")) as SupabaseQueryResult<unknown[]>;
+
+    if (files.error) {
+      throw new HttpError("Unable to inspect media folder files.", {
+        code: "media_folder_files_lookup_failed",
+        details: { cause: files.error.message },
+        statusCode: 500,
+      });
+    }
+
+    if ((files.count ?? 0) > 0) {
+      throw new HttpError("Media folder still contains files.", {
+        code: "media_folder_not_empty",
+        statusCode: 409,
+      });
+    }
   }
 }
 
@@ -524,5 +712,20 @@ function toMediaFile(row: MediaFileRow): MediaFile {
     uploadedBy: row.uploaded_by,
     url: row.url,
     width: row.width,
+  };
+}
+
+function toMediaFolder(row: MediaFolderRow): MediaFolder {
+  return {
+    color: row.color,
+    createdAt: row.created_at,
+    createdBy: row.created_by,
+    deletedAt: row.deleted_at,
+    id: row.id,
+    name: row.name,
+    parentId: row.parent_id,
+    slug: row.slug,
+    updatedAt: row.updated_at,
+    updatedBy: row.updated_by,
   };
 }
