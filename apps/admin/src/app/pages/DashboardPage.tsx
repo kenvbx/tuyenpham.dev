@@ -30,6 +30,7 @@ export function DashboardPage() {
       </div>
 
       <EmptyState
+        className="border-dashed text-sm"
         description="The first production modules will arrive through the next tracking tasks."
         title="No CMS activity yet"
       />
