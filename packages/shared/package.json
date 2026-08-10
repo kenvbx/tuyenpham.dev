@@ -4,14 +4,24 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "node -e \"console.log('CMS-0104 will configure shared build')\"",
+    "build": "tsc -p tsconfig.json",
     "lint": "node -e \"console.log('CMS-0107 will configure shared lint')\"",
-    "typecheck": "node -e \"console.log('CMS-0106 will configure shared typecheck')\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node -e \"console.log('CMS-0114 will configure shared tests')\"",
     "format": "node -e \"console.log('CMS-0107 will configure shared format')\""
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
   }
 }
-

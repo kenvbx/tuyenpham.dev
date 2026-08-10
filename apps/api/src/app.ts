@@ -1,3 +1,4 @@
+import type { HealthResponse } from "@cms/shared";
 import express, { type Express, type Request, type Response } from "express";
 
 export function createApp(): Express {
@@ -7,11 +8,13 @@ export function createApp(): Express {
   app.use(express.json({ limit: "1mb" }));
 
   app.get("/health", (_request: Request, response: Response) => {
-    response.status(200).json({
+    const health: HealthResponse = {
       status: "ok",
       service: "cms-api",
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    response.status(200).json(health);
   });
 
   return app;
