@@ -1,7 +1,7 @@
+import { appEnv } from "./config/env.js";
 import { createApp } from "./app.js";
 
-const DEFAULT_PORT = 4000;
-const port = Number.parseInt(process.env["PORT"] ?? String(DEFAULT_PORT), 10);
+const port = appEnv.PORT;
 const app = createApp();
 
 const server = app.listen(port, () => {
