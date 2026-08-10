@@ -16,6 +16,7 @@ import {
   IconShieldLock,
   IconTrash,
   IconUsers,
+  IconX,
   type IconProps as TablerIconProps,
   type TablerIcon,
 } from "@tabler/icons-react";
@@ -40,6 +41,7 @@ const cmsIcons = {
   shield: IconShieldLock,
   trash: IconTrash,
   users: IconUsers,
+  x: IconX,
 } satisfies Record<string, TablerIcon>;
 
 export type CmsIconName = keyof typeof cmsIcons;
