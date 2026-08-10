@@ -51,4 +51,3 @@ export const Permission = {
 export type Permission = (typeof Permission)[keyof typeof Permission];
 
 export const MVP_PERMISSIONS = Object.values(Permission);
-

@@ -13,10 +13,10 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "lint": "node -e \"console.log('CMS-0107 will configure shared lint')\"",
+    "lint": "eslint . --ext .ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node -e \"console.log('CMS-0114 will configure shared tests')\"",
-    "format": "node -e \"console.log('CMS-0107 will configure shared format')\""
+    "format": "prettier --write ."
   },
   "dependencies": {
     "zod": "^4.4.3"

@@ -14,8 +14,8 @@ export function DashboardPage() {
         <p>Workspace ready</p>
         <h2>CMS admin foundation</h2>
         <span>
-          React, TypeScript and Vite are now wired. Feature modules will replace
-          these placeholders as their tracking tasks move forward.
+          React, TypeScript and Vite are now wired. Feature modules will replace these placeholders
+          as their tracking tasks move forward.
         </span>
       </div>
 

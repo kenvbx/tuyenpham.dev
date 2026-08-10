@@ -11,16 +11,26 @@
     "build": "pnpm -r --if-present build",
     "build:admin": "pnpm --filter @cms/admin build",
     "build:api": "pnpm --filter @cms/api build",
-    "lint": "pnpm -r --if-present lint",
+    "lint": "eslint . --ext .js,.mjs,.ts,.tsx",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
-    "format": "pnpm -r --if-present format",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "db:migrate": "pnpm --filter @cms/tooling db:migrate",
     "db:seed": "pnpm --filter @cms/tooling db:seed"
   },
   "engines": {
     "node": ">=22.0.0",
     "pnpm": ">=9.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.9.0",
+    "prettier": "^3.9.6",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-eslint": "^8.66.0"
   }
 }
-

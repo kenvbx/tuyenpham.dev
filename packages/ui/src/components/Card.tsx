@@ -9,4 +9,3 @@ export const Card = forwardRef<HTMLElement, CardProps>(({ className, ...props },
 ));
 
 Card.displayName = "Card";
-

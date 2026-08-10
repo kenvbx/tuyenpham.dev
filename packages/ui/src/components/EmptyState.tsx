@@ -18,4 +18,3 @@ export function EmptyState({ action, className, description, title }: EmptyState
     </section>
   );
 }
-

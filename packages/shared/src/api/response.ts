@@ -37,4 +37,3 @@ export type ApiListResponse<TData> = {
 export type ApiErrorResponse = {
   error: ApiError;
 };
-

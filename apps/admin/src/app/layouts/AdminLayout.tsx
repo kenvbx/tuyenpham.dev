@@ -1,14 +1,6 @@
 import { Outlet } from "react-router-dom";
 
-const navigationItems = [
-  "Dashboard",
-  "Pages",
-  "Blog",
-  "Media",
-  "Menus",
-  "Settings",
-  "System",
-];
+const navigationItems = ["Dashboard", "Pages", "Blog", "Media", "Menus", "Settings", "System"];
 
 export function AdminLayout() {
   return (
@@ -47,4 +39,3 @@ export function AdminLayout() {
     </div>
   );
 }
-

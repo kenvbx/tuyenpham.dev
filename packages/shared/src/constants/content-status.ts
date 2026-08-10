@@ -9,4 +9,3 @@ export const ContentStatus = {
 export type ContentStatus = (typeof ContentStatus)[keyof typeof ContentStatus];
 
 export const CONTENT_STATUSES = Object.values(ContentStatus);
-
