@@ -15,6 +15,7 @@
   "dependencies": {
     "@cms/shared": "workspace:*",
     "@cms/ui": "workspace:*",
+    "@supabase/supabase-js": "^2.112.2",
     "@tanstack/react-query": "^5.101.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

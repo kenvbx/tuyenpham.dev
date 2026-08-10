@@ -1,17 +1,34 @@
+import { Permission } from "@cms/shared";
 import { Navigate, Route, Routes } from "react-router-dom";
 
+import { AuthProvider } from "./auth/AuthProvider";
+import { PermissionGate } from "./auth/PermissionGate";
+import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { AdminLayout } from "./layouts/AdminLayout";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LoginPage } from "./pages/LoginPage";
+import { UsersPage } from "./pages/UsersPage";
 
 export function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/admin" element={<AdminLayout />}>
-        <Route index element={<DashboardPage />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/admin" replace />} />
-    </Routes>
+    <AuthProvider>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<DashboardPage />} />
+            <Route
+              path="users"
+              element={
+                <PermissionGate fallback={<DashboardPage />} permission={Permission.USERS_INDEX}>
+                  <UsersPage />
+                </PermissionGate>
+              }
+            />
+          </Route>
+        </Route>
+        <Route path="*" element={<Navigate to="/admin" replace />} />
+      </Routes>
+    </AuthProvider>
   );
 }

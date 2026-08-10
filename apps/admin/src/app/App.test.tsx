@@ -1,21 +1,44 @@
 // @vitest-environment jsdom
 
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
 
+vi.mock("../app/config/env", () => ({
+  adminEnv: {
+    apiUrl: "http://localhost:4000",
+    supabaseAnonKey: "",
+    supabaseUrl: "",
+  },
+  hasSupabaseConfig: () => false,
+}));
+
 describe("Admin app", () => {
-  it("renders the dashboard route", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("renders the login route", () => {
+    render(
+      <MemoryRouter initialEntries={["/login"]}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).toBeInTheDocument();
+  });
+
+  it("redirects protected routes to login without a session", async () => {
     render(
       <MemoryRouter initialEntries={["/admin"]}>
         <App />
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
-    expect(screen.getByText("CMS admin foundation")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
   });
 });

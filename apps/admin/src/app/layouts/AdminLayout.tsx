@@ -1,22 +1,37 @@
+import { Permission } from "@cms/shared";
 import { CmsIcon, type CmsIconName } from "@cms/ui";
-import { Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
+
+import { PermissionGate } from "../auth/PermissionGate";
+import { useAuth } from "../auth/auth-context";
 
 type NavigationItem = {
   icon: CmsIconName;
   label: string;
+  permission?: string;
+  to: string;
 };
 
 const navigationItems: NavigationItem[] = [
-  { icon: "dashboard", label: "Dashboard" },
-  { icon: "fileText", label: "Pages" },
-  { icon: "article", label: "Blog" },
-  { icon: "media", label: "Media" },
-  { icon: "menu", label: "Menus" },
-  { icon: "settings", label: "Settings" },
-  { icon: "users", label: "System" },
+  { icon: "dashboard", label: "Dashboard", to: "/admin" },
+  { icon: "fileText", label: "Pages", permission: Permission.PAGES_INDEX, to: "/admin/pages" },
+  { icon: "article", label: "Blog", permission: Permission.BLOG_INDEX, to: "/admin/blog" },
+  { icon: "media", label: "Media", permission: Permission.MEDIA_INDEX, to: "/admin/media" },
+  { icon: "menu", label: "Menus", permission: Permission.MENUS_INDEX, to: "/admin/menus" },
+  { icon: "users", label: "Users", permission: Permission.USERS_INDEX, to: "/admin/users" },
+  {
+    icon: "settings",
+    label: "Settings",
+    permission: Permission.SETTINGS_INDEX,
+    to: "/admin/settings",
+  },
 ];
 
 export function AdminLayout() {
+  const auth = useAuth();
+  const location = useLocation();
+  const title = getPageTitle(location.pathname);
+
   return (
     <div className="admin-shell">
       <aside className="admin-sidebar" aria-label="Admin navigation">
@@ -31,14 +46,12 @@ export function AdminLayout() {
         </div>
         <nav>
           {navigationItems.map((item) => (
-            <a
-              key={item.label}
-              href="/admin"
-              aria-current={item.label === "Dashboard" ? "page" : undefined}
-            >
-              <CmsIcon name={item.icon} />
-              {item.label}
-            </a>
+            <PermissionGate key={item.label} permission={item.permission ?? ""}>
+              <NavLink end={item.to === "/admin"} to={item.to}>
+                <CmsIcon name={item.icon} />
+                {item.label}
+              </NavLink>
+            </PermissionGate>
           ))}
         </nav>
       </aside>
@@ -47,12 +60,22 @@ export function AdminLayout() {
         <header className="admin-topbar">
           <div>
             <p>Admin</p>
-            <h1>Dashboard</h1>
+            <h1>{title}</h1>
           </div>
-          <a className="topbar-link" href="/login">
-            <CmsIcon name="login" />
-            Login
-          </a>
+          <div className="topbar-user">
+            <span>
+              <strong>
+                {auth.currentUser?.profile.displayName ?? auth.currentUser?.profile.email}
+              </strong>
+              <small>
+                {auth.currentUser?.roles.map((role) => role.name).join(", ") || "No role"}
+              </small>
+            </span>
+            <button className="topbar-link" type="button" onClick={() => void auth.signOut()}>
+              <CmsIcon name="logout" />
+              Logout
+            </button>
+          </div>
         </header>
         <main>
           <Outlet />
@@ -60,4 +83,12 @@ export function AdminLayout() {
       </div>
     </div>
   );
+}
+
+function getPageTitle(pathname: string) {
+  if (pathname.startsWith("/admin/users")) {
+    return "Users";
+  }
+
+  return "Dashboard";
 }
