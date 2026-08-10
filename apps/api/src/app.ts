@@ -2,11 +2,13 @@ import type { HealthResponse } from "@cms/shared";
 import express, { type Express, type Request, type Response } from "express";
 
 import { errorHandler, notFoundHandler } from "./http/error-handler.js";
+import { requestLogger } from "./http/request-logger.js";
 
 export function createApp(): Express {
   const app = express();
 
   app.disable("x-powered-by");
+  app.use(requestLogger);
   app.use(express.json({ limit: "1mb" }));
 
   app.get("/health", (_request: Request, response: Response) => {
