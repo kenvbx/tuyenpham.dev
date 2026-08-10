@@ -60,6 +60,14 @@ export function RolesPage() {
       await queryClient.invalidateQueries({ queryKey: ["roles"] });
     },
   });
+  const bulkDeleteRolesMutation = useMutation({
+    mutationFn: async (roleIds: string[]) => {
+      await Promise.all(roleIds.map((roleId) => deleteRole(token, roleId)));
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["roles"] });
+    },
+  });
 
   const roles = rolesQuery.data ?? [];
   const permissions = permissionsQuery.data ?? [];
@@ -67,7 +75,8 @@ export function RolesPage() {
     rolesQuery.error ??
     permissionsQuery.error ??
     saveRoleMutation.error ??
-    deleteRoleMutation.error;
+    deleteRoleMutation.error ??
+    bulkDeleteRolesMutation.error;
   const roleColumns: DataTableColumn<AdminRole>[] = [
     {
       header: "Role",
@@ -173,6 +182,22 @@ export function RolesPage() {
             isLoading={rolesQuery.isLoading}
             loadingDescription="Fetching role definitions."
             loadingTitle="Loading roles"
+            selectable
+            bulkActions={[
+              {
+                label: bulkDeleteRolesMutation.isPending ? "Deleting" : "Delete selected",
+                onClick: (selectedIds) => {
+                  const mutableRoleIds = roles
+                    .filter((role) => selectedIds.includes(role.id) && !role.isSystem)
+                    .map((role) => role.id);
+
+                  if (mutableRoleIds.length > 0) {
+                    bulkDeleteRolesMutation.mutate(mutableRoleIds);
+                  }
+                },
+                variant: "danger",
+              },
+            ]}
           />
         </Card>
 

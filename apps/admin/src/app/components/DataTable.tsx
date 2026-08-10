@@ -10,6 +10,12 @@ export type DataTableColumn<TRow> = {
   sortValue?: (row: TRow) => number | string | null | undefined;
 };
 
+export type DataTableBulkAction = {
+  label: string;
+  onClick: (selectedIds: string[]) => void;
+  variant?: "danger" | "primary" | "secondary";
+};
+
 type DataTablePagination = {
   label: string;
   onPageChange: (page: number) => void;
@@ -18,6 +24,7 @@ type DataTablePagination = {
 };
 
 type DataTableProps<TRow> = {
+  bulkActions?: DataTableBulkAction[];
   columns: DataTableColumn<TRow>[];
   data: TRow[];
   emptyDescription: string;
@@ -31,6 +38,7 @@ type DataTableProps<TRow> = {
   pagination?: DataTablePagination | undefined;
   searchDefaultValue?: string;
   searchPlaceholder?: string;
+  selectable?: boolean;
 };
 
 type SortState = {
@@ -39,6 +47,7 @@ type SortState = {
 } | null;
 
 export function DataTable<TRow>({
+  bulkActions = [],
   columns,
   data,
   emptyDescription,
@@ -52,14 +61,38 @@ export function DataTable<TRow>({
   pagination,
   searchDefaultValue = "",
   searchPlaceholder = "Search",
+  selectable = false,
 }: DataTableProps<TRow>) {
   const [sort, setSort] = useState<SortState>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const sortedData = useMemo(() => sortRows(data, columns, sort), [columns, data, sort]);
+  const visibleIds = sortedData.map(getRowKey);
+  const selectedVisibleIds = selectedIds.filter((id) => visibleIds.includes(id));
+  const isAllVisibleSelected =
+    visibleIds.length > 0 && selectedVisibleIds.length === visibleIds.length;
   const hasToolbar = Boolean(onSearch || filters);
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     onSearch?.(new FormData(event.currentTarget));
+  }
+
+  function toggleAllVisibleRows() {
+    setSelectedIds((currentIds) => {
+      if (isAllVisibleSelected) {
+        return currentIds.filter((id) => !visibleIds.includes(id));
+      }
+
+      return [...new Set([...currentIds, ...visibleIds])];
+    });
+  }
+
+  function toggleRow(rowId: string) {
+    setSelectedIds((currentIds) =>
+      currentIds.includes(rowId)
+        ? currentIds.filter((currentId) => currentId !== rowId)
+        : [...currentIds, rowId],
+    );
   }
 
   return (
@@ -85,6 +118,27 @@ export function DataTable<TRow>({
         </form>
       )}
 
+      {selectable && selectedIds.length > 0 && (
+        <div className="bulk-actions" role="region" aria-label="Bulk actions">
+          <span>{selectedIds.length} selected</span>
+          <div>
+            {bulkActions.map((action) => (
+              <Button
+                key={action.label}
+                type="button"
+                variant={action.variant ?? "secondary"}
+                onClick={() => action.onClick(selectedIds)}
+              >
+                {action.label}
+              </Button>
+            ))}
+            <Button type="button" variant="ghost" onClick={() => setSelectedIds([])}>
+              Clear
+            </Button>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <EmptyState title={loadingTitle} description={loadingDescription} />
       ) : sortedData.length === 0 ? (
@@ -94,6 +148,16 @@ export function DataTable<TRow>({
           <table className="data-table">
             <thead>
               <tr>
+                {selectable && (
+                  <th className="selection-cell">
+                    <input
+                      aria-label="Select all rows"
+                      checked={isAllVisibleSelected}
+                      type="checkbox"
+                      onChange={toggleAllVisibleRows}
+                    />
+                  </th>
+                )}
                 {columns.map((column) => (
                   <th
                     key={column.id}
@@ -118,6 +182,16 @@ export function DataTable<TRow>({
             <tbody>
               {sortedData.map((row) => (
                 <tr key={getRowKey(row)}>
+                  {selectable && (
+                    <td className="selection-cell">
+                      <input
+                        aria-label="Select row"
+                        checked={selectedIds.includes(getRowKey(row))}
+                        type="checkbox"
+                        onChange={() => toggleRow(getRowKey(row))}
+                      />
+                    </td>
+                  )}
                   {columns.map((column) => (
                     <td
                       key={column.id}

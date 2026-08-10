@@ -87,12 +87,24 @@ export function UsersPage() {
       await queryClient.invalidateQueries({ queryKey: ["users"] });
     },
   });
+  const bulkDisableUsersMutation = useMutation({
+    mutationFn: async (userIds: string[]) => {
+      await Promise.all(userIds.map((userId) => disableUser(token, userId)));
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+  });
 
   const users = usersQuery.data?.data ?? [];
   const pagination = usersQuery.data?.pagination;
   const roles = rolesQuery.data ?? [];
   const error =
-    usersQuery.error ?? rolesQuery.error ?? saveUserMutation.error ?? disableUserMutation.error;
+    usersQuery.error ??
+    rolesQuery.error ??
+    saveUserMutation.error ??
+    disableUserMutation.error ??
+    bulkDisableUsersMutation.error;
 
   const userColumns: DataTableColumn<AdminUser>[] = [
     {
@@ -224,6 +236,22 @@ export function UsersPage() {
             loadingDescription="Fetching admin user records."
             loadingTitle="Loading users"
             onSearch={handleSearch}
+            selectable
+            bulkActions={[
+              {
+                label: bulkDisableUsersMutation.isPending ? "Disabling" : "Disable selected",
+                onClick: (selectedIds) => {
+                  const activeUserIds = users
+                    .filter((user) => selectedIds.includes(user.id) && user.status !== "inactive")
+                    .map((user) => user.id);
+
+                  if (activeUserIds.length > 0) {
+                    bulkDisableUsersMutation.mutate(activeUserIds);
+                  }
+                },
+                variant: "danger",
+              },
+            ]}
             pagination={
               pagination
                 ? {
