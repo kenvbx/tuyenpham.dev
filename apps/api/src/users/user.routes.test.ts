@@ -181,4 +181,35 @@ describe("user routes", () => {
       roleIds: [],
     });
   });
+
+  it("disables users", async () => {
+    const users = {
+      disableUser: vi.fn(async () => ({
+        avatarId: null,
+        createdAt: "2026-08-10T00:00:00.000Z",
+        displayName: "Disabled Admin",
+        email: "disabled@example.com",
+        firstName: "Disabled",
+        id: targetUserId,
+        lastLoginAt: null,
+        lastName: "Admin",
+        roles: [],
+        status: "inactive",
+        updatedAt: "2026-08-10T01:00:00.000Z",
+      })),
+    } as unknown as UserService;
+
+    const response = await request(createTestApp(users))
+      .delete(`/admin/users/${targetUserId}`)
+      .set("Authorization", "Bearer token")
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      data: {
+        id: targetUserId,
+        status: "inactive",
+      },
+    });
+    expect(users.disableUser).toHaveBeenCalledWith(targetUserId);
+  });
 });

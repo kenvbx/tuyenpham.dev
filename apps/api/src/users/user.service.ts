@@ -224,6 +224,45 @@ export class UserService {
     return this.getUser(userId);
   }
 
+  async disableUser(userId: string): Promise<AdminUser> {
+    await this.loadProfileById(userId);
+
+    const authAdmin = this.client.auth?.admin;
+
+    if (!authAdmin) {
+      throw new HttpError("Supabase admin auth client is not configured.", {
+        code: "auth_admin_not_configured",
+        statusCode: 500,
+      });
+    }
+
+    const authResult = await authAdmin.updateUserById(userId, {
+      ban_duration: "876000h",
+    });
+
+    if (authResult.error) {
+      throw new HttpError("Unable to disable auth user.", {
+        code: "auth_user_disable_failed",
+        details: { cause: authResult.error.message },
+        statusCode: 500,
+      });
+    }
+
+    const profileResult = await this.from("profiles")
+      .update({ status: "inactive" })
+      .eq("id", userId);
+
+    if (profileResult.error) {
+      throw new HttpError("Unable to disable user profile.", {
+        code: "profile_disable_failed",
+        details: { cause: profileResult.error.message },
+        statusCode: 500,
+      });
+    }
+
+    return this.getUser(userId);
+  }
+
   async getUser(userId: string): Promise<AdminUser> {
     const profile = await this.loadProfileById(userId);
     const rolesByUserId = await this.loadRolesByUserId([userId]);

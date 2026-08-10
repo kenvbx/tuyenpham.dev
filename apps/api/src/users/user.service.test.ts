@@ -197,4 +197,52 @@ describe("UserService", () => {
       }),
     );
   });
+
+  it("disables auth users and marks profiles inactive", async () => {
+    const profile = {
+      avatar_id: null,
+      created_at: "2026-08-10T00:00:00.000Z",
+      display_name: "Admin",
+      email: "admin@example.com",
+      first_name: "Admin",
+      id: "user-4",
+      last_login_at: null,
+      last_name: null,
+      status: "active",
+      updated_at: "2026-08-10T00:00:00.000Z",
+    };
+    let currentProfile = profile;
+    const client = {
+      auth: {
+        admin: {
+          createUser: vi.fn(),
+          updateUserById: vi.fn(async () => ({ data: { user: {} }, error: null })),
+        },
+      },
+      from: vi.fn((table: string) => {
+        if (table === "profiles") {
+          const query = createThenableQuery([currentProfile]);
+          query.update.mockImplementation((patch: Partial<typeof profile>) => {
+            currentProfile = {
+              ...currentProfile,
+              ...patch,
+              updated_at: "2026-08-10T01:00:00.000Z",
+            };
+            return query;
+          });
+          return query;
+        }
+
+        return createThenableQuery();
+      }),
+    };
+    const service = new UserService({ client });
+
+    const result = await service.disableUser("user-4");
+
+    expect(result.status).toBe("inactive");
+    expect(client.auth.admin.updateUserById).toHaveBeenCalledWith("user-4", {
+      ban_duration: "876000h",
+    });
+  });
 });

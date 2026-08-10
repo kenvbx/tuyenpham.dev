@@ -109,5 +109,23 @@ export function createUserRouter(options: UserRouterOptions = {}): ExpressRouter
     },
   );
 
+  router.delete(
+    "/:userId",
+    requireAuth(auth),
+    requirePermission(Permission.USERS_DELETE, permissions),
+    async (request, response, next) => {
+      try {
+        const params = userParamsSchema.parse(request.params);
+        const user = await users.disableUser(params.userId);
+
+        response.json({
+          data: user,
+        });
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
   return router;
 }
