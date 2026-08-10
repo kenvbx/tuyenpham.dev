@@ -1,10 +1,11 @@
 import { Permission } from "@cms/shared";
-import { Button, Card, CmsIcon, EmptyState, Input } from "@cms/ui";
+import { Button, Card, CmsIcon, Input } from "@cms/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useMemo, useState } from "react";
 
 import { PermissionGate } from "../auth/PermissionGate";
 import { useAuth } from "../auth/auth-context";
+import { DataTable, type DataTableColumn } from "../components/DataTable";
 import { PageHeader } from "../components/PageHeader";
 import {
   createUser,
@@ -93,9 +94,67 @@ export function UsersPage() {
   const error =
     usersQuery.error ?? rolesQuery.error ?? saveUserMutation.error ?? disableUserMutation.error;
 
-  function handleSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+  const userColumns: DataTableColumn<AdminUser>[] = [
+    {
+      header: "User",
+      id: "user",
+      render: (user) => (
+        <>
+          <strong>{user.displayName ?? user.email}</strong>
+          <span>{user.email}</span>
+        </>
+      ),
+      sortable: true,
+      sortValue: (user) => user.displayName ?? user.email,
+    },
+    {
+      header: "Status",
+      id: "status",
+      render: (user) => (
+        <span className={`status-pill status-pill--${user.status}`}>{user.status}</span>
+      ),
+      sortable: true,
+      sortValue: (user) => user.status,
+    },
+    {
+      header: "Roles",
+      id: "roles",
+      render: (user) => user.roles.map((role) => role.name).join(", ") || "No role",
+    },
+    {
+      header: "Last login",
+      id: "lastLogin",
+      render: (user) => formatDate(user.lastLoginAt),
+      sortable: true,
+      sortValue: (user) => user.lastLoginAt ?? "",
+    },
+    {
+      align: "right",
+      header: "Actions",
+      id: "actions",
+      render: (user) => (
+        <div className="row-actions">
+          <PermissionGate permission={Permission.USERS_EDIT}>
+            <button aria-label={`Edit ${user.email}`} type="button" onClick={() => editUser(user)}>
+              <CmsIcon name="edit" />
+            </button>
+          </PermissionGate>
+          <PermissionGate permission={Permission.USERS_DELETE}>
+            <button
+              aria-label={`Disable ${user.email}`}
+              disabled={disableUserMutation.variables === user.id || user.status === "inactive"}
+              type="button"
+              onClick={() => disableUserMutation.mutate(user.id)}
+            >
+              <CmsIcon name="trash" />
+            </button>
+          </PermissionGate>
+        </div>
+      ),
+    },
+  ];
+
+  function handleSearch(formData: FormData) {
     setFilters((current) => ({
       ...current,
       page: 1,
@@ -137,24 +196,6 @@ export function UsersPage() {
         }
       />
 
-      <form className="toolbar" onSubmit={handleSearch}>
-        <label className="search-field">
-          <CmsIcon name="search" />
-          <Input name="search" placeholder="Search users" defaultValue={filters.search} />
-        </label>
-        <select name="status" defaultValue={filters.status}>
-          <option value="">All status</option>
-          {statusOptions.map((status) => (
-            <option key={status} value={status}>
-              {status}
-            </option>
-          ))}
-        </select>
-        <Button type="submit" variant="secondary">
-          Filter
-        </Button>
-      </form>
-
       {error && (
         <p className="form-alert" role="alert">
           {error instanceof Error ? error.message : "Unable to load users."}
@@ -163,26 +204,39 @@ export function UsersPage() {
 
       <div className="users-layout">
         <Card className="table-panel">
-          {usersQuery.isLoading ? (
-            <EmptyState title="Loading users" description="Fetching admin user records." />
-          ) : users.length === 0 ? (
-            <EmptyState title="No users found" description="Create the first admin account here." />
-          ) : (
-            <UsersTable
-              disablingUserId={disableUserMutation.variables}
-              onDisable={(userId) => disableUserMutation.mutate(userId)}
-              onEdit={editUser}
-              users={users}
-            />
-          )}
-          {pagination && (
-            <PaginationControls
-              onPageChange={(page) => setFilters((current) => ({ ...current, page }))}
-              page={pagination.page}
-              pageCount={pagination.pageCount}
-              total={pagination.total}
-            />
-          )}
+          <DataTable
+            columns={userColumns}
+            data={users}
+            emptyDescription="Create the first admin account here."
+            emptyTitle="No users found"
+            filters={
+              <select name="status" defaultValue={filters.status}>
+                <option value="">All status</option>
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            }
+            getRowKey={(user) => user.id}
+            isLoading={usersQuery.isLoading}
+            loadingDescription="Fetching admin user records."
+            loadingTitle="Loading users"
+            onSearch={handleSearch}
+            pagination={
+              pagination
+                ? {
+                    label: `${pagination.total} users`,
+                    onPageChange: (page) => setFilters((current) => ({ ...current, page })),
+                    page: pagination.page,
+                    pageCount: pagination.pageCount,
+                  }
+                : undefined
+            }
+            searchDefaultValue={filters.search}
+            searchPlaceholder="Search users"
+          />
         </Card>
 
         <PermissionGate permission={form.id ? Permission.USERS_EDIT : Permission.USERS_CREATE}>
@@ -198,72 +252,6 @@ export function UsersPage() {
         </PermissionGate>
       </div>
     </section>
-  );
-}
-
-function UsersTable({
-  disablingUserId,
-  onDisable,
-  onEdit,
-  users,
-}: {
-  disablingUserId?: string | undefined;
-  onDisable: (userId: string) => void;
-  onEdit: (user: AdminUser) => void;
-  users: AdminUser[];
-}) {
-  return (
-    <div className="table-scroll">
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>User</th>
-            <th>Status</th>
-            <th>Roles</th>
-            <th>Last login</th>
-            <th aria-label="Actions" />
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((user) => (
-            <tr key={user.id}>
-              <td>
-                <strong>{user.displayName ?? user.email}</strong>
-                <span>{user.email}</span>
-              </td>
-              <td>
-                <span className={`status-pill status-pill--${user.status}`}>{user.status}</span>
-              </td>
-              <td>{user.roles.map((role) => role.name).join(", ") || "No role"}</td>
-              <td>{formatDate(user.lastLoginAt)}</td>
-              <td>
-                <div className="row-actions">
-                  <PermissionGate permission={Permission.USERS_EDIT}>
-                    <button
-                      aria-label={`Edit ${user.email}`}
-                      type="button"
-                      onClick={() => onEdit(user)}
-                    >
-                      <CmsIcon name="edit" />
-                    </button>
-                  </PermissionGate>
-                  <PermissionGate permission={Permission.USERS_DELETE}>
-                    <button
-                      aria-label={`Disable ${user.email}`}
-                      disabled={disablingUserId === user.id || user.status === "inactive"}
-                      type="button"
-                      onClick={() => onDisable(user.id)}
-                    >
-                      <CmsIcon name="trash" />
-                    </button>
-                  </PermissionGate>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   );
 }
 
@@ -384,35 +372,6 @@ function UserForm({
         {isSaving ? "Saving" : form.id ? "Save changes" : "Create user"}
       </Button>
     </form>
-  );
-}
-
-function PaginationControls({
-  onPageChange,
-  page,
-  pageCount,
-  total,
-}: {
-  onPageChange: (page: number) => void;
-  page: number;
-  pageCount: number;
-  total: number;
-}) {
-  return (
-    <div className="pagination">
-      <span>{total} users</span>
-      <div>
-        <button disabled={page <= 1} type="button" onClick={() => onPageChange(page - 1)}>
-          <CmsIcon name="chevronLeft" />
-        </button>
-        <strong>
-          {page} / {Math.max(pageCount, 1)}
-        </strong>
-        <button disabled={page >= pageCount} type="button" onClick={() => onPageChange(page + 1)}>
-          <CmsIcon name="chevronRight" />
-        </button>
-      </div>
-    </div>
   );
 }
 

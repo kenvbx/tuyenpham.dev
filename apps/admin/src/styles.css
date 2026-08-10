@@ -441,6 +441,10 @@ select {
   overflow: hidden;
 }
 
+.data-table-panel {
+  display: grid;
+}
+
 .table-scroll {
   overflow-x: auto;
 }
@@ -466,6 +470,25 @@ select {
   text-transform: uppercase;
 }
 
+.data-table th button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-weight: inherit;
+  padding: 0;
+  text-transform: inherit;
+}
+
+.data-table th button span {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
 .data-table td strong,
 .data-table td span {
   display: block;
@@ -474,6 +497,10 @@ select {
 .data-table td span {
   color: #64748b;
   font-size: 13px;
+}
+
+.text-right {
+  text-align: right;
 }
 
 .status-pill {

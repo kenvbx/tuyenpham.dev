@@ -1,10 +1,11 @@
 import { Permission } from "@cms/shared";
-import { Button, Card, CmsIcon, EmptyState, Input } from "@cms/ui";
+import { Button, Card, CmsIcon, Input } from "@cms/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useMemo, useState } from "react";
 
 import { PermissionGate } from "../auth/PermissionGate";
 import { useAuth } from "../auth/auth-context";
+import { DataTable, type DataTableColumn } from "../components/DataTable";
 import { PageHeader } from "../components/PageHeader";
 import {
   createRole,
@@ -67,6 +68,61 @@ export function RolesPage() {
     permissionsQuery.error ??
     saveRoleMutation.error ??
     deleteRoleMutation.error;
+  const roleColumns: DataTableColumn<AdminRole>[] = [
+    {
+      header: "Role",
+      id: "role",
+      render: (role) => (
+        <>
+          <strong>{role.name}</strong>
+          <span>{role.slug}</span>
+        </>
+      ),
+      sortable: true,
+      sortValue: (role) => role.name,
+    },
+    {
+      header: "Flags",
+      id: "flags",
+      render: (role) => (
+        <div className="flag-list">
+          {role.isSystem && <span className="status-pill">system</span>}
+          {role.isDefault && <span className="status-pill status-pill--active">default</span>}
+        </div>
+      ),
+    },
+    {
+      header: "Permissions",
+      id: "permissions",
+      render: (role) => `${role.permissions.length} permissions`,
+      sortable: true,
+      sortValue: (role) => role.permissions.length,
+    },
+    {
+      align: "right",
+      header: "Actions",
+      id: "actions",
+      render: (role) => (
+        <div className="row-actions">
+          <PermissionGate permission={Permission.ROLES_EDIT}>
+            <button aria-label={`Edit ${role.name}`} type="button" onClick={() => editRole(role)}>
+              <CmsIcon name="edit" />
+            </button>
+          </PermissionGate>
+          <PermissionGate permission={Permission.ROLES_DELETE}>
+            <button
+              aria-label={`Delete ${role.name}`}
+              disabled={deleteRoleMutation.variables === role.id || role.isSystem}
+              type="button"
+              onClick={() => deleteRoleMutation.mutate(role.id)}
+            >
+              <CmsIcon name="trash" />
+            </button>
+          </PermissionGate>
+        </div>
+      ),
+    },
+  ];
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -108,18 +164,16 @@ export function RolesPage() {
 
       <div className="roles-layout">
         <Card className="table-panel">
-          {rolesQuery.isLoading ? (
-            <EmptyState title="Loading roles" description="Fetching role definitions." />
-          ) : roles.length === 0 ? (
-            <EmptyState title="No roles found" description="Create a role to assign permissions." />
-          ) : (
-            <RolesTable
-              deletingRoleId={deleteRoleMutation.variables}
-              onDelete={(roleId) => deleteRoleMutation.mutate(roleId)}
-              onEdit={editRole}
-              roles={roles}
-            />
-          )}
+          <DataTable
+            columns={roleColumns}
+            data={roles}
+            emptyDescription="Create a role to assign permissions."
+            emptyTitle="No roles found"
+            getRowKey={(role) => role.id}
+            isLoading={rolesQuery.isLoading}
+            loadingDescription="Fetching role definitions."
+            loadingTitle="Loading roles"
+          />
         </Card>
 
         <PermissionGate permission={form.id ? Permission.ROLES_EDIT : Permission.ROLES_CREATE}>
@@ -135,75 +189,6 @@ export function RolesPage() {
         </PermissionGate>
       </div>
     </section>
-  );
-}
-
-function RolesTable({
-  deletingRoleId,
-  onDelete,
-  onEdit,
-  roles,
-}: {
-  deletingRoleId?: string | undefined;
-  onDelete: (roleId: string) => void;
-  onEdit: (role: AdminRole) => void;
-  roles: AdminRole[];
-}) {
-  return (
-    <div className="table-scroll">
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Role</th>
-            <th>Flags</th>
-            <th>Permissions</th>
-            <th aria-label="Actions" />
-          </tr>
-        </thead>
-        <tbody>
-          {roles.map((role) => (
-            <tr key={role.id}>
-              <td>
-                <strong>{role.name}</strong>
-                <span>{role.slug}</span>
-              </td>
-              <td>
-                <div className="flag-list">
-                  {role.isSystem && <span className="status-pill">system</span>}
-                  {role.isDefault && (
-                    <span className="status-pill status-pill--active">default</span>
-                  )}
-                </div>
-              </td>
-              <td>{role.permissions.length} permissions</td>
-              <td>
-                <div className="row-actions">
-                  <PermissionGate permission={Permission.ROLES_EDIT}>
-                    <button
-                      aria-label={`Edit ${role.name}`}
-                      type="button"
-                      onClick={() => onEdit(role)}
-                    >
-                      <CmsIcon name="edit" />
-                    </button>
-                  </PermissionGate>
-                  <PermissionGate permission={Permission.ROLES_DELETE}>
-                    <button
-                      aria-label={`Delete ${role.name}`}
-                      disabled={deletingRoleId === role.id || role.isSystem}
-                      type="button"
-                      onClick={() => onDelete(role.id)}
-                    >
-                      <CmsIcon name="trash" />
-                    </button>
-                  </PermissionGate>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   );
 }
 
