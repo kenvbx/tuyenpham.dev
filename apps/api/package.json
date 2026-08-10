@@ -9,7 +9,7 @@
     "start": "node dist/main.js",
     "lint": "eslint . --ext .ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node -e \"console.log('CMS-0114 will configure API tests')\"",
+    "test": "NODE_ENV=test APP_URL=http://localhost:4000 ADMIN_URL=http://localhost:5173 CORS_ORIGINS=http://localhost:5173 LOG_LEVEL=error vitest run src",
     "format": "prettier --write ."
   },
   "dependencies": {

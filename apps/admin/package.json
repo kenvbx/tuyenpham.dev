@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc -b --noEmit",
-    "test": "node -e \"console.log('CMS-0114 will configure admin tests')\"",
+    "test": "vitest run src",
     "format": "prettier --write ."
   },
   "dependencies": {

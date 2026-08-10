@@ -15,7 +15,7 @@
     "build": "tsc -p tsconfig.json",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node -e \"console.log('CMS-0114 will configure UI tests')\"",
+    "test": "vitest run src",
     "format": "prettier --write ."
   },
   "dependencies": {
@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "typescript": "^7.0.2"
