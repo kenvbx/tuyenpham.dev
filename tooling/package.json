@@ -6,10 +6,11 @@
   "scripts": {
     "db:migrate": "node scripts/migrate.mjs",
     "db:migrate:dry-run": "node scripts/migrate.mjs --dry-run",
-    "db:seed": "node scripts/not-configured.mjs db:seed CMS-0202",
+    "db:seed": "node scripts/seed.mjs",
+    "db:seed:dry-run": "node scripts/seed.mjs --dry-run",
     "lint": "eslint . --ext .js,.mjs,.ts",
     "typecheck": "node -e \"console.log('tooling typecheck placeholder')\"",
-    "test": "node scripts/migrate.mjs --dry-run",
+    "test": "node scripts/migrate.mjs --dry-run && node scripts/seed.mjs --dry-run",
     "format": "prettier --write ."
   },
   "dependencies": {
