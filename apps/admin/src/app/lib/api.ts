@@ -112,6 +112,22 @@ export type UserFormInput = {
 
 export type UserUpdateInput = Omit<UserFormInput, "password">;
 
+export type DashboardOverview = {
+  recentContent: Array<{
+    id: string;
+    status: string;
+    title: string;
+    type: "page" | "post";
+    updatedAt: string;
+  }>;
+  summary: Array<{
+    hint: string;
+    key: "media" | "menus" | "pages" | "posts";
+    label: string;
+    value: number;
+  }>;
+};
+
 type RequestOptions = {
   body?: unknown;
   method?: "DELETE" | "GET" | "PATCH" | "POST";
@@ -177,6 +193,15 @@ export async function logAuthEvent(token: string, action: "login" | "logout") {
     method: "POST",
     token,
   });
+}
+
+export async function getDashboardOverview(token: string) {
+  const response = await apiRequest<ApiSuccessResponse<DashboardOverview>>(
+    "/admin/dashboard/overview",
+    { token },
+  );
+
+  return response.data;
 }
 
 export async function listUsers(token: string, filters: UserListFilters) {
