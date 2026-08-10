@@ -325,6 +325,27 @@ select {
   padding: 10px 12px;
 }
 
+.cms-field {
+  display: grid;
+  gap: 7px;
+  color: #334155;
+  font-size: 14px;
+}
+
+.cms-field > span,
+.cms-switch strong {
+  font-weight: 600;
+}
+
+.cms-field-description {
+  color: #64748b;
+}
+
+.cms-field-error {
+  color: #b91c1c;
+}
+
+.cms-select,
 select {
   min-height: 42px;
   border: 1px solid #cbd5e1;
@@ -332,6 +353,56 @@ select {
   background: #ffffff;
   color: #172033;
   padding: 9px 12px;
+}
+
+.cms-textarea {
+  min-height: 96px;
+  width: 100%;
+  resize: vertical;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.cms-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #334155;
+}
+
+.cms-switch input {
+  position: absolute;
+  opacity: 0;
+}
+
+.cms-switch span {
+  position: relative;
+  display: inline-flex;
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: #cbd5e1;
+}
+
+.cms-switch span::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #ffffff;
+  content: "";
+  transition: transform 140ms ease;
+}
+
+.cms-switch input:checked + span {
+  background: #1f6feb;
+}
+
+.cms-switch input:checked + span::after {
+  transform: translateX(16px);
 }
 
 .route-loading {
