@@ -113,13 +113,27 @@ input {
 }
 
 .topbar-link,
-.login-panel button {
+.cms-button {
   border: 0;
   border-radius: 6px;
   background: #1f6feb;
   color: #ffffff;
   cursor: pointer;
   padding: 10px 14px;
+}
+
+.cms-button--secondary {
+  background: #e2e8f0;
+  color: #172033;
+}
+
+.cms-button--ghost {
+  background: transparent;
+  color: #1f6feb;
+}
+
+.cms-button--danger {
+  background: #dc2626;
 }
 
 .dashboard {
@@ -148,12 +162,26 @@ input {
   gap: 16px;
 }
 
-.summary-card {
+.summary-card,
+.cms-empty-state {
   min-height: 132px;
   border: 1px solid #d9e0ea;
   border-radius: 8px;
   background: #ffffff;
   padding: 18px;
+}
+
+.cms-empty-state {
+  min-height: 0;
+}
+
+.cms-empty-state h2 {
+  margin: 0 0 6px;
+}
+
+.cms-empty-state p {
+  margin: 0;
+  color: #64748b;
 }
 
 .summary-card strong {
@@ -190,7 +218,7 @@ input {
   font-size: 14px;
 }
 
-.login-panel input {
+.cms-input {
   width: 100%;
   border: 1px solid #cbd5e1;
   border-radius: 6px;

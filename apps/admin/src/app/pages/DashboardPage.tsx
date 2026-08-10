@@ -1,3 +1,5 @@
+import { Card, EmptyState } from "@cms/ui";
+
 const summaryCards = [
   { label: "Pages", value: "0", hint: "Ready for CMS-0601" },
   { label: "Posts", value: "0", hint: "Ready for CMS-0701" },
@@ -19,14 +21,18 @@ export function DashboardPage() {
 
       <div className="summary-grid">
         {summaryCards.map((card) => (
-          <article key={card.label} className="summary-card">
+          <Card key={card.label} className="summary-card">
             <p>{card.label}</p>
             <strong>{card.value}</strong>
             <span>{card.hint}</span>
-          </article>
+          </Card>
         ))}
       </div>
+
+      <EmptyState
+        description="The first production modules will arrive through the next tracking tasks."
+        title="No CMS activity yet"
+      />
     </section>
   );
 }
-

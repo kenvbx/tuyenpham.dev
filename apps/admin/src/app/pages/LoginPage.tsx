@@ -1,22 +1,28 @@
+import { Button, Card, Input } from "@cms/ui";
+
 export function LoginPage() {
   return (
     <main className="login-page">
-      <section className="login-panel" aria-labelledby="login-title">
+      <Card className="login-panel" aria-labelledby="login-title">
         <p>CMS Admin</p>
         <h1 id="login-title">Sign in</h1>
         <form>
           <label>
             Email
-            <input type="email" name="email" placeholder="admin@example.com" autoComplete="email" />
+            <Input type="email" name="email" placeholder="admin@example.com" autoComplete="email" />
           </label>
           <label>
             Password
-            <input type="password" name="password" placeholder="••••••••" autoComplete="current-password" />
+            <Input
+              type="password"
+              name="password"
+              placeholder="••••••••"
+              autoComplete="current-password"
+            />
           </label>
-          <button type="button">Continue</button>
+          <Button>Continue</Button>
         </form>
-      </section>
+      </Card>
     </main>
   );
 }
-
