@@ -303,6 +303,7 @@ select {
   align-items: center;
 }
 
+.roles-page,
 .users-page {
   display: grid;
   gap: 18px;
@@ -349,6 +350,7 @@ select {
   padding-left: 38px;
 }
 
+.roles-layout,
 .users-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
@@ -461,12 +463,15 @@ select {
   gap: 10px;
 }
 
+.role-form,
 .user-form {
   display: grid;
   gap: 14px;
   padding: 18px;
 }
 
+.role-form label,
+.role-form fieldset,
 .user-form label,
 .user-form fieldset {
   display: grid;
@@ -476,11 +481,13 @@ select {
   font-size: 14px;
 }
 
+.role-form fieldset,
 .user-form fieldset {
   border: 0;
   padding: 0;
 }
 
+.role-form legend,
 .user-form legend {
   margin-bottom: 8px;
   padding: 0;
@@ -492,6 +499,7 @@ select {
   gap: 12px;
 }
 
+.permission-matrix,
 .role-checklist {
   display: grid;
   max-height: 220px;
@@ -499,6 +507,21 @@ select {
   overflow: auto;
 }
 
+.permission-matrix section {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.permission-matrix h4 {
+  margin: 0 0 4px;
+  color: #334155;
+  font-size: 13px;
+}
+
+.permission-matrix label,
 .role-checklist label {
   display: flex;
   align-items: center;
@@ -508,19 +531,38 @@ select {
   padding: 9px;
 }
 
+.permission-matrix input,
 .role-checklist input {
   width: 16px;
   height: 16px;
 }
 
+.permission-matrix span,
+.permission-matrix strong,
+.permission-matrix small,
 .role-checklist span,
 .role-checklist strong,
 .role-checklist small {
   display: block;
 }
 
+.permission-matrix small,
 .role-checklist small {
   color: #64748b;
+}
+
+.flag-list,
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.toggle-row label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 @media (max-width: 820px) {
@@ -541,6 +583,7 @@ select {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .roles-layout,
   .users-layout {
     grid-template-columns: 1fr;
   }

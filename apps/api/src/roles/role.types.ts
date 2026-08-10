@@ -4,6 +4,11 @@ export type RolePermissionSummary = {
   name: string;
 };
 
+export type PermissionCatalogItem = RolePermissionSummary & {
+  description: string | null;
+  groupName: string;
+};
+
 export type AdminRole = {
   createdAt: string;
   description: string | null;

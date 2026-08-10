@@ -7,6 +7,7 @@ import type {
   AdminRole,
   CreateRoleInput,
   ListRolesParams,
+  PermissionCatalogItem,
   RolePermissionSummary,
   UpdateRoleInput,
 } from "./role.types.js";
@@ -55,8 +56,17 @@ type RolePermissionRow = {
   role_id: string;
 };
 
+type PermissionRow = {
+  description: string | null;
+  flag: string;
+  group_name: string;
+  id: string;
+  name: string;
+};
+
 const ROLE_SELECT = "id,slug,name,description,is_system,is_default,created_at,updated_at";
 const ROLE_PERMISSIONS_SELECT = "role_id, permissions (id, flag, name)";
+const PERMISSION_SELECT = "id,flag,name,group_name,description";
 
 export class RoleService {
   private readonly client: RoleServiceClient;
@@ -99,6 +109,29 @@ export class RoleService {
         total: result.count ?? roles.length,
       }),
     };
+  }
+
+  async listPermissions(): Promise<PermissionCatalogItem[]> {
+    const result = (await this.from("permissions")
+      .select(PERMISSION_SELECT)
+      .order("group_name", { ascending: true })
+      .order("flag", { ascending: true })) as SupabaseQueryResult<PermissionRow[]>;
+
+    if (result.error) {
+      throw new HttpError("Unable to list permissions.", {
+        code: "permissions_list_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    return (result.data ?? []).map((permission) => ({
+      description: permission.description,
+      flag: permission.flag,
+      groupName: permission.group_name,
+      id: permission.id,
+      name: permission.name,
+    }));
   }
 
   async createRole(input: CreateRoleInput): Promise<AdminRole> {

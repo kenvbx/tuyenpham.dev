@@ -55,6 +55,23 @@ export type AdminRole = {
   updatedAt: string;
 };
 
+export type PermissionCatalogItem = {
+  description: string | null;
+  flag: string;
+  groupName: string;
+  id: string;
+  name: string;
+};
+
+export type RoleFormInput = {
+  description?: string | undefined;
+  isDefault: boolean;
+  isSystem: boolean;
+  name: string;
+  permissionIds: string[];
+  slug: string;
+};
+
 export type AdminUser = {
   avatarId: string | null;
   createdAt: string;
@@ -191,6 +208,42 @@ export async function listRoles(token: string) {
   return response.data;
 }
 
+export async function listPermissionCatalog(token: string) {
+  const response = await apiRequest<ApiSuccessResponse<PermissionCatalogItem[]>>(
+    "/admin/roles/permissions",
+    { token },
+  );
+
+  return response.data;
+}
+
+export async function createRole(token: string, input: RoleFormInput) {
+  const response = await apiRequest<ApiSuccessResponse<AdminRole>>("/admin/roles", {
+    body: cleanRolePayload(input),
+    method: "POST",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function updateRole(token: string, roleId: string, input: RoleFormInput) {
+  const response = await apiRequest<ApiSuccessResponse<AdminRole>>(`/admin/roles/${roleId}`, {
+    body: cleanRolePayload(input),
+    method: "PATCH",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function deleteRole(token: string, roleId: string) {
+  await apiRequest<void>(`/admin/roles/${roleId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
 export type { Pagination };
 
 function cleanUserPayload(input: UserFormInput | UserUpdateInput) {
@@ -203,6 +256,10 @@ function cleanUserPayload(input: UserFormInput | UserUpdateInput) {
       return value !== "";
     }),
   );
+}
+
+function cleanRolePayload(input: RoleFormInput) {
+  return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== ""));
 }
 
 async function parseError(response: Response): Promise<ApiErrorPayload> {

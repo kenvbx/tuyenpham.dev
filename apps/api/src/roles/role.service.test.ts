@@ -33,11 +33,23 @@ function createThenableQuery(data: unknown[] = [], count = data.length) {
   return builder;
 }
 
-function createClient(roleRows = [role]) {
+function createRoleClient(roleRows = [role]) {
   return {
     from: vi.fn((table: string) => {
       if (table === "roles") {
         return createThenableQuery(roleRows, roleRows.length);
+      }
+
+      if (table === "permissions") {
+        return createThenableQuery([
+          {
+            description: "View pages.",
+            flag: "pages.index",
+            group_name: "Pages",
+            id: "10000000-0000-4000-8000-000000000021",
+            name: "View pages",
+          },
+        ]);
       }
 
       return createThenableQuery([
@@ -56,7 +68,7 @@ function createClient(roleRows = [role]) {
 
 describe("RoleService", () => {
   it("lists roles with permissions", async () => {
-    const service = new RoleService({ client: createClient() });
+    const service = new RoleService({ client: createRoleClient() });
 
     const result = await service.listRoles({ page: 1, perPage: 20 });
 
@@ -71,8 +83,24 @@ describe("RoleService", () => {
     });
   });
 
+  it("lists permission catalog items", async () => {
+    const service = new RoleService({ client: createRoleClient() });
+
+    const result = await service.listPermissions();
+
+    expect(result).toEqual([
+      {
+        description: "View pages.",
+        flag: "pages.index",
+        groupName: "Pages",
+        id: "10000000-0000-4000-8000-000000000021",
+        name: "View pages",
+      },
+    ]);
+  });
+
   it("creates roles and assigns permissions", async () => {
-    const service = new RoleService({ client: createClient() });
+    const service = new RoleService({ client: createRoleClient() });
 
     const result = await service.createRole({
       name: "Admin",
@@ -84,7 +112,7 @@ describe("RoleService", () => {
   });
 
   it("updates roles", async () => {
-    const service = new RoleService({ client: createClient() });
+    const service = new RoleService({ client: createRoleClient() });
 
     const result = await service.updateRole(role.id, {
       name: "Updated Admin",
@@ -96,7 +124,7 @@ describe("RoleService", () => {
 
   it("rejects deleting system roles", async () => {
     const service = new RoleService({
-      client: createClient([{ ...role, is_system: true, slug: "super-admin" }]),
+      client: createRoleClient([{ ...role, is_system: true, slug: "super-admin" }]),
     });
 
     await expect(service.deleteRole(role.id)).rejects.toMatchObject({

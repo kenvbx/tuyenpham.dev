@@ -112,6 +112,29 @@ describe("role routes", () => {
     });
   });
 
+  it("lists permissions", async () => {
+    const roles = {
+      listPermissions: vi.fn(async () => [
+        {
+          description: "View pages.",
+          flag: "pages.index",
+          groupName: "Pages",
+          id: permissionId,
+          name: "View pages",
+        },
+      ]),
+    } as unknown as RoleService;
+
+    const response = await request(createTestApp(roles))
+      .get("/admin/roles/permissions")
+      .set("Authorization", "Bearer token")
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      data: [{ flag: "pages.index", groupName: "Pages" }],
+    });
+  });
+
   it("updates roles", async () => {
     const roles = {
       updateRole: vi.fn(async () => roleResponse()),

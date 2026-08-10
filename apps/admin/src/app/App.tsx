@@ -7,6 +7,7 @@ import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { AdminLayout } from "./layouts/AdminLayout";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LoginPage } from "./pages/LoginPage";
+import { RolesPage } from "./pages/RolesPage";
 import { UsersPage } from "./pages/UsersPage";
 
 export function App() {
@@ -17,6 +18,14 @@ export function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<DashboardPage />} />
+            <Route
+              path="roles"
+              element={
+                <PermissionGate fallback={<DashboardPage />} permission={Permission.ROLES_INDEX}>
+                  <RolesPage />
+                </PermissionGate>
+              }
+            />
             <Route
               path="users"
               element={

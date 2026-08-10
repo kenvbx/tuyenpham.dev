@@ -51,6 +51,21 @@ export function createRoleRouter(options: RoleRouterOptions = {}): ExpressRouter
   const roles = options.roles ?? roleService;
 
   router.get(
+    "/permissions",
+    requireAuth(auth),
+    requirePermission(Permission.PERMISSIONS_INDEX, permissions),
+    async (_request, response, next) => {
+      try {
+        const permissionCatalog = await roles.listPermissions();
+
+        response.json({ data: permissionCatalog });
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.get(
     "/",
     requireAuth(auth),
     requirePermission(Permission.ROLES_INDEX, permissions),

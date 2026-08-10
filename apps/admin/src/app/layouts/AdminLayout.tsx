@@ -19,6 +19,7 @@ const navigationItems: NavigationItem[] = [
   { icon: "media", label: "Media", permission: Permission.MEDIA_INDEX, to: "/admin/media" },
   { icon: "menu", label: "Menus", permission: Permission.MENUS_INDEX, to: "/admin/menus" },
   { icon: "users", label: "Users", permission: Permission.USERS_INDEX, to: "/admin/users" },
+  { icon: "shield", label: "Roles", permission: Permission.ROLES_INDEX, to: "/admin/roles" },
   {
     icon: "settings",
     label: "Settings",
@@ -88,6 +89,10 @@ export function AdminLayout() {
 function getPageTitle(pathname: string) {
   if (pathname.startsWith("/admin/users")) {
     return "Users";
+  }
+
+  if (pathname.startsWith("/admin/roles")) {
+    return "Roles";
   }
 
   return "Dashboard";
