@@ -1,7 +1,7 @@
 import { createApp } from "./app.js";
 
 const DEFAULT_PORT = 4000;
-const port = Number.parseInt(process.env.PORT ?? String(DEFAULT_PORT), 10);
+const port = Number.parseInt(process.env["PORT"] ?? String(DEFAULT_PORT), 10);
 const app = createApp();
 
 const server = app.listen(port, () => {
