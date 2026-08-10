@@ -4,11 +4,13 @@ import {
   createDashboardRouter,
   type DashboardRouterOptions,
 } from "../dashboard/dashboard.routes.js";
+import { createMediaRouter, type MediaRouterOptions } from "../media/media.routes.js";
 import { createRoleRouter, type RoleRouterOptions } from "../roles/role.routes.js";
 import { createUserRouter, type UserRouterOptions } from "../users/user.routes.js";
 
 export type AdminRouterOptions = {
   dashboard?: DashboardRouterOptions;
+  media?: MediaRouterOptions;
   roles?: RoleRouterOptions;
   users?: UserRouterOptions;
 };
@@ -17,6 +19,7 @@ export function createAdminRouter(options: AdminRouterOptions = {}): ExpressRout
   const router = Router();
 
   router.use("/dashboard", createDashboardRouter(options.dashboard));
+  router.use("/media", createMediaRouter(options.media));
   router.use("/roles", createRoleRouter(options.roles));
   router.use("/users", createUserRouter(options.users));
 
