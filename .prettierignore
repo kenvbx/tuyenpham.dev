@@ -2,6 +2,8 @@ CMS_TASK_TRACKING.md
 docs/
 outputs/
 
+supabase/**/*.sql
+
 dist/
 node_modules/
 *.tsbuildinfo
