@@ -51,8 +51,7 @@ type RolePermissionRow = {
   permissions: { flag: string } | { flag: string }[] | null;
 };
 
-const PROFILE_SELECT =
-  "id,email,first_name,last_name,display_name,avatar_id,status,last_login_at";
+const PROFILE_SELECT = "id,email,first_name,last_name,display_name,avatar_id,status,last_login_at";
 const ROLES_SELECT = "roles (id, slug, name, description, is_system, is_default)";
 const PERMISSIONS_SELECT = "permissions (flag)";
 const SUPER_ADMIN_ROLE = "super-admin";
@@ -67,7 +66,8 @@ export class PermissionService {
   async resolveUserContext(user: AuthenticatedUser): Promise<PermissionContext> {
     const profile = await this.loadProfile(user.id);
     const roles = await this.loadRoles(user.id);
-    const permissions = roles.length > 0 ? await this.loadPermissions(roles.map((role) => role.id)) : [];
+    const permissions =
+      roles.length > 0 ? await this.loadPermissions(roles.map((role) => role.id)) : [];
     const uniquePermissions = [...new Set(permissions)].sort();
     const isSuperAdmin = roles.some((role) => role.slug === SUPER_ADMIN_ROLE);
 

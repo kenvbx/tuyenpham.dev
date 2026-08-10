@@ -1,6 +1,7 @@
 import type { HealthResponse } from "@cms/shared";
 import express, { type Express, type Request, type Response } from "express";
 
+import { createAuthRouter } from "./auth/auth.routes.js";
 import { errorHandler, notFoundHandler } from "./http/error-handler.js";
 import { requestLogger } from "./http/request-logger.js";
 
@@ -20,6 +21,8 @@ export function createApp(): Express {
 
     response.status(200).json(health);
   });
+
+  app.use("/auth", createAuthRouter());
 
   app.use(notFoundHandler);
   app.use(errorHandler);
