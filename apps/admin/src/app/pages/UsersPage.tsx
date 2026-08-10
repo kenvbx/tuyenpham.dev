@@ -5,6 +5,7 @@ import { type FormEvent, useMemo, useState } from "react";
 
 import { PermissionGate } from "../auth/PermissionGate";
 import { useAuth } from "../auth/auth-context";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
 import { ErrorState } from "../components/PageState";
 import { PageHeader } from "../components/PageHeader";
@@ -42,6 +43,7 @@ export function UsersPage() {
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState({ page: 1, perPage: 10, search: "", status: "" });
   const [form, setForm] = useState<UserFormState>(emptyForm);
+  const [pendingDisableIds, setPendingDisableIds] = useState<string[]>([]);
   const token = auth.token ?? "";
   const usersQueryKey = ["users", filters];
 
@@ -166,7 +168,7 @@ export function UsersPage() {
               aria-label={`Disable ${user.email}`}
               disabled={disableUserMutation.variables === user.id || user.status === "inactive"}
               type="button"
-              onClick={() => disableUserMutation.mutate(user.id)}
+              onClick={() => setPendingDisableIds([user.id])}
             >
               <CmsIcon name="trash" />
             </button>
@@ -252,7 +254,7 @@ export function UsersPage() {
                     .map((user) => user.id);
 
                   if (activeUserIds.length > 0) {
-                    bulkDisableUsersMutation.mutate(activeUserIds);
+                    setPendingDisableIds(activeUserIds);
                   }
                 },
                 variant: "danger",
@@ -285,6 +287,26 @@ export function UsersPage() {
           </Card>
         </PermissionGate>
       </div>
+      <ConfirmDialog
+        confirmLabel="Disable"
+        description={`Disable ${pendingDisableIds.length} selected user${pendingDisableIds.length === 1 ? "" : "s"}?`}
+        isOpen={pendingDisableIds.length > 0}
+        isPending={disableUserMutation.isPending || bulkDisableUsersMutation.isPending}
+        title="Disable users"
+        onClose={() => setPendingDisableIds([])}
+        onConfirm={() => {
+          if (pendingDisableIds.length === 1) {
+            const targetId = pendingDisableIds[0];
+
+            if (targetId) {
+              disableUserMutation.mutate(targetId);
+            }
+          } else {
+            bulkDisableUsersMutation.mutate(pendingDisableIds);
+          }
+          setPendingDisableIds([]);
+        }}
+      />
     </section>
   );
 }

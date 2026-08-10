@@ -5,6 +5,7 @@ import { type FormEvent, useMemo, useState } from "react";
 
 import { PermissionGate } from "../auth/PermissionGate";
 import { useAuth } from "../auth/auth-context";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
 import { ErrorState } from "../components/PageState";
 import { PageHeader } from "../components/PageHeader";
@@ -38,6 +39,7 @@ export function RolesPage() {
   const { notify } = useToast();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<RoleFormState>(emptyForm);
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
   const token = auth.token ?? "";
   const rolesQuery = useQuery({
     enabled: Boolean(token),
@@ -137,7 +139,7 @@ export function RolesPage() {
               aria-label={`Delete ${role.name}`}
               disabled={deleteRoleMutation.variables === role.id || role.isSystem}
               type="button"
-              onClick={() => deleteRoleMutation.mutate(role.id)}
+              onClick={() => setPendingDeleteIds([role.id])}
             >
               <CmsIcon name="trash" />
             </button>
@@ -202,7 +204,7 @@ export function RolesPage() {
                     .map((role) => role.id);
 
                   if (mutableRoleIds.length > 0) {
-                    bulkDeleteRolesMutation.mutate(mutableRoleIds);
+                    setPendingDeleteIds(mutableRoleIds);
                   }
                 },
                 variant: "danger",
@@ -223,6 +225,26 @@ export function RolesPage() {
           </Card>
         </PermissionGate>
       </div>
+      <ConfirmDialog
+        confirmLabel="Delete"
+        description={`Delete ${pendingDeleteIds.length} selected role${pendingDeleteIds.length === 1 ? "" : "s"}?`}
+        isOpen={pendingDeleteIds.length > 0}
+        isPending={deleteRoleMutation.isPending || bulkDeleteRolesMutation.isPending}
+        title="Delete roles"
+        onClose={() => setPendingDeleteIds([])}
+        onConfirm={() => {
+          if (pendingDeleteIds.length === 1) {
+            const targetId = pendingDeleteIds[0];
+
+            if (targetId) {
+              deleteRoleMutation.mutate(targetId);
+            }
+          } else {
+            bulkDeleteRolesMutation.mutate(pendingDeleteIds);
+          }
+          setPendingDeleteIds([]);
+        }}
+      />
     </section>
   );
 }
