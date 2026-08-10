@@ -8,6 +8,7 @@ import { ToastProvider } from "./components/ToastProvider";
 import { AdminLayout } from "./layouts/AdminLayout";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LoginPage } from "./pages/LoginPage";
+import { MediaPage } from "./pages/MediaPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { RolesPage } from "./pages/RolesPage";
 import { UsersPage } from "./pages/UsersPage";
@@ -22,6 +23,14 @@ export function App() {
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<DashboardPage />} />
               <Route path="profile" element={<ProfilePage />} />
+              <Route
+                path="media"
+                element={
+                  <PermissionGate fallback={<DashboardPage />} permission={Permission.MEDIA_INDEX}>
+                    <MediaPage />
+                  </PermissionGate>
+                }
+              />
               <Route
                 path="roles"
                 element={

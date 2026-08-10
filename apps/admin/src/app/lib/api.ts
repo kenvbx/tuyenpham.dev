@@ -128,6 +128,51 @@ export type DashboardOverview = {
   }>;
 };
 
+export type AdminMediaFile = {
+  alt: string | null;
+  bucket: string;
+  caption: string | null;
+  createdAt: string;
+  deletedAt: string | null;
+  durationSeconds: number | null;
+  extension: string;
+  folderId: string | null;
+  height: number | null;
+  id: string;
+  metadata: Record<string, unknown>;
+  mimeType: string;
+  name: string;
+  objectPath: string;
+  originalName: string;
+  sizeBytes: number;
+  status: string;
+  updatedAt: string;
+  uploadedBy: string | null;
+  url: string;
+  width: number | null;
+};
+
+export type AdminMediaFolder = {
+  color: string | null;
+  createdAt: string;
+  createdBy: string | null;
+  deletedAt: string | null;
+  id: string;
+  name: string;
+  parentId: string | null;
+  slug: string;
+  updatedAt: string;
+  updatedBy: string | null;
+};
+
+export type MediaListFilters = {
+  folderId?: string | null | undefined;
+  page: number;
+  perPage: number;
+  search?: string | undefined;
+  type?: "document" | "image" | undefined;
+};
+
 type RequestOptions = {
   body?: unknown;
   method?: "DELETE" | "GET" | "PATCH" | "POST";
@@ -200,6 +245,79 @@ export async function getDashboardOverview(token: string) {
     "/admin/dashboard/overview",
     { token },
   );
+
+  return response.data;
+}
+
+export async function listMediaFiles(token: string, filters: MediaListFilters) {
+  const params = new URLSearchParams({
+    page: String(filters.page),
+    perPage: String(filters.perPage),
+  });
+
+  if (filters.folderId === null) {
+    params.set("folderId", "root");
+  } else if (filters.folderId) {
+    params.set("folderId", filters.folderId);
+  }
+
+  if (filters.search) {
+    params.set("search", filters.search);
+  }
+
+  if (filters.type) {
+    params.set("type", filters.type);
+  }
+
+  return apiRequest<ApiListResponse<AdminMediaFile>>(`/admin/media?${params.toString()}`, {
+    token,
+  });
+}
+
+export async function listMediaFolders(token: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminMediaFolder[]>>(
+    "/admin/media/folders",
+    { token },
+  );
+
+  return response.data;
+}
+
+export async function uploadMediaFile(
+  token: string,
+  input: { file: File; folderId?: string | null | undefined },
+) {
+  const formData = new FormData();
+  formData.set("file", input.file);
+
+  if (input.folderId) {
+    formData.set("folderId", input.folderId);
+  }
+
+  const response = await fetch(`${adminEnv.apiUrl}/admin/media/upload`, {
+    body: formData,
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    const payload = await parseError(response);
+    throw new ApiClientError(payload.message, response.status, payload);
+  }
+
+  const body = (await response.json()) as ApiSuccessResponse<AdminMediaFile>;
+
+  return body.data;
+}
+
+export async function trashMediaFile(token: string, fileId: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminMediaFile>>(`/admin/media/${fileId}`, {
+    method: "DELETE",
+    token,
+  });
 
   return response.data;
 }
