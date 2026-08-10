@@ -12,13 +12,11 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
-    "baseUrl": ".",
     "paths": {
-      "@cms/shared": ["packages/shared/src/index.ts"],
-      "@cms/shared/*": ["packages/shared/src/*"],
-      "@cms/ui": ["packages/ui/src/index.ts"],
-      "@cms/ui/*": ["packages/ui/src/*"]
+      "@cms/shared": ["../../packages/shared/src/index.ts"],
+      "@cms/shared/*": ["../../packages/shared/src/*"],
+      "@cms/ui": ["../../packages/ui/src/index.ts"],
+      "@cms/ui/*": ["../../packages/ui/src/*"]
     }
   }
 }
-

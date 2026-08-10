@@ -4,16 +4,27 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node -e \"console.log('CMS-0102 will replace this with Vite dev server')\"",
-    "build": "node -e \"console.log('CMS-0102 will replace this with Vite build')\"",
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
     "lint": "node -e \"console.log('CMS-0107 will configure admin lint')\"",
-    "typecheck": "node -e \"console.log('CMS-0106 will configure admin typecheck')\"",
+    "typecheck": "tsc -b --noEmit",
     "test": "node -e \"console.log('CMS-0114 will configure admin tests')\"",
     "format": "node -e \"console.log('CMS-0107 will configure admin format')\""
   },
   "dependencies": {
     "@cms/shared": "workspace:*",
-    "@cms/ui": "workspace:*"
+    "@cms/ui": "workspace:*",
+    "@tanstack/react-query": "^5.101.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.2"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1"
   }
 }
-
