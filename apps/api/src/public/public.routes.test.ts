@@ -3,14 +3,18 @@ import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "../http/error-handler.js";
-import type { PostService } from "../posts/post.service.js";
+import type { PublicContentService } from "./public-content.service.js";
 import type { PublicResolverService } from "./public-resolver.service.js";
 import { createPublicRouter } from "./public.routes.js";
 
 const postId = "10000000-0000-4000-8000-000000000501";
 const pageId = "10000000-0000-4000-8000-000000000503";
+const categoryId = "10000000-0000-4000-8000-000000000507";
 
-function createTestHarness(options: { posts?: PostService; resolver?: PublicResolverService }) {
+function createTestHarness(options: {
+  content?: PublicContentService;
+  resolver?: PublicResolverService;
+}) {
   const app = express();
 
   app.use(express.json());
@@ -115,8 +119,8 @@ describe("public routes", () => {
   });
 
   it("returns published posts by slug and lets the service increment views", async () => {
-    const posts = {
-      getPublishedPostBySlug: vi.fn(async () => ({
+    const content = {
+      getPostBySlug: vi.fn(async () => ({
         author: null,
         authorId: null,
         categories: [],
@@ -144,9 +148,9 @@ describe("public routes", () => {
         updatedAt: "2026-08-10T00:00:00.000Z",
         viewsCount: 12,
       })),
-    } as unknown as PostService;
+    } as unknown as PublicContentService;
 
-    const response = await request(createTestHarness({ posts }))
+    const response = await request(createTestHarness({ content }))
       .get("/public/posts/first-post")
       .expect(200);
 
@@ -156,6 +160,126 @@ describe("public routes", () => {
       status: "published",
       viewsCount: 12,
     });
-    expect(posts.getPublishedPostBySlug).toHaveBeenCalledWith("first-post");
+    expect(content.getPostBySlug).toHaveBeenCalledWith("first-post", "vi");
+  });
+
+  it("returns public pages by slug", async () => {
+    const content = {
+      getPageBySlug: vi.fn(async () => ({
+        author: null,
+        authorId: null,
+        contentHtml: "<p>About</p>",
+        contentJson: null,
+        contentText: "About",
+        contentVersion: 1,
+        excerpt: null,
+        featuredImageId: null,
+        id: pageId,
+        publishedAt: "2026-08-10T00:00:00.000Z",
+        seo: null,
+        slug: {
+          id: "10000000-0000-4000-8000-000000000508",
+          key: "about",
+          locale: "vi",
+          prefix: "",
+        },
+        status: "published",
+        title: "About",
+        updatedAt: "2026-08-10T00:00:00.000Z",
+      })),
+    } as unknown as PublicContentService;
+
+    const response = await request(createTestHarness({ content }))
+      .get("/public/pages/about")
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      id: pageId,
+      slug: { key: "about" },
+      status: "published",
+    });
+    expect(content.getPageBySlug).toHaveBeenCalledWith("about", "vi");
+  });
+
+  it("returns public post lists with pagination and filters", async () => {
+    const content = {
+      listPosts: vi.fn(async () => ({
+        data: [
+          {
+            authorId: null,
+            categories: [],
+            excerpt: "Post excerpt",
+            featuredImageId: null,
+            id: postId,
+            publishedAt: "2026-08-10T00:00:00.000Z",
+            slug: null,
+            status: "published",
+            tags: [],
+            title: "First post",
+            updatedAt: "2026-08-10T00:00:00.000Z",
+            viewsCount: 1,
+          },
+        ],
+        pagination: { page: 2, pageCount: 3, perPage: 10, total: 25 },
+      })),
+    } as unknown as PublicContentService;
+
+    const response = await request(createTestHarness({ content }))
+      .get("/public/posts?page=2&perPage=10&category=news&tag=node")
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      data: [{ id: postId, title: "First post" }],
+      pagination: { page: 2, pageCount: 3, perPage: 10, total: 25 },
+    });
+    expect(content.listPosts).toHaveBeenCalledWith({
+      category: "news",
+      locale: "vi",
+      page: 2,
+      perPage: 10,
+      tag: "node",
+    });
+  });
+
+  it("returns public categories with their posts", async () => {
+    const content = {
+      getCategoryBySlug: vi.fn(async () => ({
+        category: {
+          description: null,
+          id: categoryId,
+          name: "News",
+          parentId: null,
+          slug: {
+            id: "10000000-0000-4000-8000-000000000509",
+            key: "news",
+            locale: "vi",
+            prefix: "",
+          },
+          sortOrder: 0,
+          status: "published",
+          updatedAt: "2026-08-10T00:00:00.000Z",
+        },
+        pagination: { page: 1, pageCount: 1, perPage: 20, total: 1 },
+        posts: [],
+      })),
+    } as unknown as PublicContentService;
+
+    const response = await request(createTestHarness({ content }))
+      .get("/public/categories/news")
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      category: { id: categoryId, name: "News" },
+      posts: [],
+    });
+    expect(content.getCategoryBySlug).toHaveBeenCalledWith(
+      "news",
+      {
+        locale: "vi",
+        page: 1,
+        perPage: 20,
+      },
+      "vi",
+    );
   });
 });
