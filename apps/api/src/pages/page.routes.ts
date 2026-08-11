@@ -55,6 +55,9 @@ const updatePageStatusBodySchema = z.object({
 const pageParamsSchema = z.object({
   pageId: z.string().uuid(),
 });
+const revisionParamsSchema = pageParamsSchema.extend({
+  revisionId: z.string().uuid(),
+});
 const pagePreviewHtmlQuerySchema = z.object({
   expiresAt: z.iso.datetime(),
   token: z
@@ -155,6 +158,54 @@ export function createPageRouter(options: PageRouterOptions = {}): ExpressRouter
         const preview = await pages.createPreview(params.pageId);
 
         response.json(createApiSuccessResponse(preview));
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.get(
+    "/:pageId/revisions",
+    requireAuth(auth),
+    requirePermission(Permission.PAGES_INDEX, permissions),
+    async (request, response, next) => {
+      try {
+        const params = pageParamsSchema.parse(request.params);
+        const revisions = await pages.listRevisions(params.pageId);
+
+        response.json(createApiSuccessResponse(revisions));
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.post(
+    "/:pageId/revisions/:revisionId/restore",
+    requireAuth(auth),
+    requirePermission(Permission.PAGES_EDIT, permissions),
+    async (request, response, next) => {
+      try {
+        const params = revisionParamsSchema.parse(request.params);
+        const page = await pages.restoreRevision(
+          params.pageId,
+          params.revisionId,
+          request.auth?.user.id ?? null,
+        );
+
+        await audit.log({
+          action: "pages.revisions.restore",
+          actorId: request.auth?.user.id ?? null,
+          afterData: { revisionId: params.revisionId },
+          entityId: page.id,
+          entityType: "page",
+          ipAddress: request.ip,
+          metadata: { revisionId: params.revisionId, title: page.title },
+          requestId: request.header("x-request-id") ?? null,
+          userAgent: request.header("user-agent") ?? null,
+        });
+
+        response.json(createApiSuccessResponse(page));
       } catch (error) {
         next(error);
       }

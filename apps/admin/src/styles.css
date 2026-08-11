@@ -1275,6 +1275,63 @@ select {
   background: #ffffff;
 }
 
+.revision-panel {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 14px;
+}
+
+.revision-panel header,
+.revision-list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.revision-panel h4,
+.revision-panel p {
+  margin: 0;
+}
+
+.revision-panel header p,
+.revision-list small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.revision-panel header span {
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.revision-list {
+  display: grid;
+  gap: 8px;
+}
+
+.revision-list article {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.revision-list article > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.revision-list strong,
+.revision-list span,
+.revision-list small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

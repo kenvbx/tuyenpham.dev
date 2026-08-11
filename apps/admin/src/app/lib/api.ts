@@ -211,6 +211,16 @@ export type AdminPagePreview = {
   previewUrl: string;
 };
 
+export type AdminPageRevision = {
+  createdAt: string;
+  createdBy: string | null;
+  id: string;
+  metadata: Record<string, unknown>;
+  revisionNumber: number;
+  snapshot: AdminPageDetail;
+  title: string | null;
+};
+
 export type AdminPageAuthor = {
   displayName: string | null;
   email: string;
@@ -471,6 +481,27 @@ export async function getPagePreview(token: string, pageId: string) {
   const response = await apiRequest<ApiSuccessResponse<AdminPagePreview>>(
     `/admin/pages/${pageId}/preview`,
     { token },
+  );
+
+  return response.data;
+}
+
+export async function listPageRevisions(token: string, pageId: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminPageRevision[]>>(
+    `/admin/pages/${pageId}/revisions`,
+    { token },
+  );
+
+  return response.data;
+}
+
+export async function restorePageRevision(token: string, pageId: string, revisionId: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminPageDetail>>(
+    `/admin/pages/${pageId}/revisions/${revisionId}/restore`,
+    {
+      method: "POST",
+      token,
+    },
   );
 
   return response.data;

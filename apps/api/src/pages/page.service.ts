@@ -13,6 +13,7 @@ import type {
   PageAuthor,
   PageDetail,
   PagePreview,
+  PageRevision,
   PageSeoInput,
   PageSeoMeta,
   PageSlug,
@@ -97,7 +98,13 @@ type AuthorRow = {
 };
 
 type RevisionRow = {
+  created_at: string;
+  created_by: string | null;
+  id: string;
+  metadata: Record<string, unknown>;
   revision_number: number;
+  snapshot: PageDetail;
+  title: string | null;
 };
 
 const PAGE_SELECT =
@@ -106,6 +113,7 @@ const SLUG_SELECT = "id,key,prefix,locale,reference_id";
 const SEO_SELECT =
   "id,meta_title,meta_description,canonical_url,og_title,og_description,og_image_id,og_image_url,noindex,nofollow,structured_data";
 const AUTHOR_SELECT = "id,email,display_name";
+const REVISION_SELECT = "id,revision_number,title,snapshot,metadata,created_by,created_at";
 
 export class PageService {
   private readonly client: PageServiceClient;
@@ -336,6 +344,52 @@ export class PageService {
     }
 
     return renderPreviewHtml(await this.getPage(pageId));
+  }
+
+  async listRevisions(pageId: string): Promise<PageRevision[]> {
+    await this.loadPageById(pageId, { includeDeleted: true });
+
+    const result = (await this.from("revisions")
+      .select(REVISION_SELECT)
+      .eq("entity_type", "page")
+      .eq("entity_id", pageId)
+      .order("revision_number", { ascending: false })) as SupabaseQueryResult<RevisionRow[]>;
+
+    if (result.error) {
+      throw new HttpError("Unable to list page revisions.", {
+        code: "page_revisions_list_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    return (result.data ?? []).map(toRevision);
+  }
+
+  async restoreRevision(
+    pageId: string,
+    revisionId: string,
+    restoredBy: string | null,
+  ): Promise<PageDetail> {
+    const revision = await this.loadRevision(pageId, revisionId);
+    const snapshot = revision.snapshot;
+
+    return this.updatePage(pageId, {
+      contentHtml: snapshot.contentHtml,
+      contentJson: snapshot.contentJson,
+      contentText: snapshot.contentText,
+      excerpt: snapshot.excerpt,
+      featuredImageId: snapshot.featuredImageId,
+      publishedAt: snapshot.publishedAt,
+      seo: toSeoInput(snapshot.seo),
+      slug: snapshot.slug?.key,
+      status:
+        snapshot.status === "deleted"
+          ? "draft"
+          : (snapshot.status as Exclude<PageStatus, "deleted">),
+      title: snapshot.title,
+      updatedBy: restoredBy,
+    });
   }
 
   async deletePage(pageId: string): Promise<PageDetail> {
@@ -585,6 +639,32 @@ export class PageService {
     }
   }
 
+  private async loadRevision(pageId: string, revisionId: string): Promise<PageRevision> {
+    const result = await this.from("revisions")
+      .select(REVISION_SELECT)
+      .eq("entity_type", "page")
+      .eq("entity_id", pageId)
+      .eq("id", revisionId)
+      .maybeSingle();
+
+    if (result.error) {
+      throw new HttpError("Unable to load page revision.", {
+        code: "page_revision_lookup_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    if (!result.data) {
+      throw new HttpError("Page revision was not found.", {
+        code: "page_revision_not_found",
+        statusCode: 404,
+      });
+    }
+
+    return toRevision(result.data as RevisionRow);
+  }
+
   private async createRevision(
     page: PageDetail,
     createdBy: string | null,
@@ -698,6 +778,33 @@ function toAuthor(row: AuthorRow): PageAuthor {
     displayName: row.display_name,
     email: row.email,
     id: row.id,
+  };
+}
+
+function toRevision(row: RevisionRow): PageRevision {
+  return {
+    createdAt: row.created_at,
+    createdBy: row.created_by,
+    id: row.id,
+    metadata: row.metadata,
+    revisionNumber: row.revision_number,
+    snapshot: row.snapshot,
+    title: row.title,
+  };
+}
+
+function toSeoInput(seo: PageSeoMeta | null): PageSeoInput {
+  return {
+    canonicalUrl: seo?.canonicalUrl ?? null,
+    metaDescription: seo?.metaDescription ?? null,
+    metaTitle: seo?.metaTitle ?? null,
+    nofollow: seo?.nofollow ?? false,
+    noindex: seo?.noindex ?? false,
+    ogDescription: seo?.ogDescription ?? null,
+    ogImageId: seo?.ogImageId ?? null,
+    ogImageUrl: seo?.ogImageUrl ?? null,
+    ogTitle: seo?.ogTitle ?? null,
+    structuredData: seo?.structuredData ?? {},
   };
 }
 

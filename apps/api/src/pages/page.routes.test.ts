@@ -35,6 +35,7 @@ const context: PermissionContext = {
   roles: [],
 };
 const pageId = "10000000-0000-4000-8000-000000000101";
+const revisionId = "10000000-0000-4000-8000-000000000104";
 
 function createTestHarness(pages: PageService) {
   const app = express();
@@ -173,6 +174,54 @@ describe("page routes", () => {
     expect(pages.createPreview).toHaveBeenCalledWith(pageId);
   });
 
+  it("lists page revisions", async () => {
+    const pages = {
+      listRevisions: vi.fn(async () => [
+        {
+          createdAt: "2026-08-11T01:00:00.000Z",
+          createdBy: user.id,
+          id: revisionId,
+          metadata: { reason: "page.update" },
+          revisionNumber: 2,
+          snapshot: pageResponse(),
+          title: "About",
+        },
+      ]),
+    } as unknown as PageService;
+
+    const response = await request(createTestHarness(pages).app)
+      .get(`/admin/pages/${pageId}/revisions`)
+      .set("Authorization", "Bearer token")
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      data: [{ id: revisionId, revisionNumber: 2, title: "About" }],
+    });
+    expect(pages.listRevisions).toHaveBeenCalledWith(pageId);
+  });
+
+  it("restores page revisions and audits the action", async () => {
+    const pages = {
+      restoreRevision: vi.fn(async () => pageResponse()),
+    } as unknown as PageService;
+    const { app, audit } = createTestHarness(pages);
+
+    const response = await request(app)
+      .post(`/admin/pages/${pageId}/revisions/${revisionId}/restore`)
+      .set("Authorization", "Bearer token")
+      .expect(200);
+
+    expect(response.body.data.id).toBe(pageId);
+    expect(pages.restoreRevision).toHaveBeenCalledWith(pageId, revisionId, user.id);
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "pages.revisions.restore",
+        actorId: user.id,
+        entityId: pageId,
+      }),
+    );
+  });
+
   it("renders signed page preview html", async () => {
     const pages = {
       renderPreviewHtml: vi.fn(async () => "<!doctype html><h1>About</h1>"),
@@ -261,8 +310,9 @@ describe("page routes", () => {
     const pages = {
       updatePage: vi.fn(async () => ({ ...pageResponse(), title: "Updated About" })),
     } as unknown as PageService;
+    const { app, audit } = createTestHarness(pages);
 
-    const response = await request(createTestHarness(pages).app)
+    const response = await request(app)
       .patch(`/admin/pages/${pageId}`)
       .set("Authorization", "Bearer token")
       .send({
@@ -279,6 +329,13 @@ describe("page routes", () => {
       title: "Updated About",
       updatedBy: user.id,
     });
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "pages.update",
+        actorId: user.id,
+        entityId: pageId,
+      }),
+    );
   });
 
   it("updates page status through the publish workflow", async () => {
@@ -320,12 +377,21 @@ describe("page routes", () => {
       })),
     } as unknown as PageService;
 
-    const response = await request(createTestHarness(pages).app)
+    const { app, audit } = createTestHarness(pages);
+
+    const response = await request(app)
       .delete(`/admin/pages/${pageId}`)
       .set("Authorization", "Bearer token")
       .expect(200);
 
     expect(response.body.data.status).toBe("deleted");
     expect(pages.deletePage).toHaveBeenCalledWith(pageId);
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "pages.delete",
+        actorId: user.id,
+        entityId: pageId,
+      }),
+    );
   });
 });

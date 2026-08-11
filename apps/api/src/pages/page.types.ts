@@ -65,6 +65,16 @@ export type PagePreview = {
   previewUrl: string;
 };
 
+export type PageRevision = {
+  createdAt: string;
+  createdBy: string | null;
+  id: string;
+  metadata: Record<string, unknown>;
+  revisionNumber: number;
+  snapshot: PageDetail;
+  title: string | null;
+};
+
 export type PageSeoInput = {
   canonicalUrl?: string | null | undefined;
   metaDescription?: string | null | undefined;

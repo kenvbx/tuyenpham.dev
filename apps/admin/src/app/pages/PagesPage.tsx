@@ -18,12 +18,15 @@ import {
   deletePage,
   getPage,
   getPagePreview,
+  listPageRevisions,
   listPages,
+  restorePageRevision,
   suggestPageSlug,
   updatePage,
   updatePageStatus,
   type AdminPageDetail,
   type AdminPagePreview,
+  type AdminPageRevision,
   type AdminPageStatus,
   type AdminPageSummary,
   type PageFormInput,
@@ -90,6 +93,11 @@ export function PagesPage() {
       }),
     queryKey: ["pages", "slug-suggestion", form.id, form.slug, form.title],
   });
+  const revisionsQuery = useQuery({
+    enabled: Boolean(token && form.id),
+    queryFn: () => listPageRevisions(token, form.id ?? ""),
+    queryKey: ["pages", form.id, "revisions"],
+  });
 
   const loadPageMutation = useMutation({
     mutationFn: (pageId: string) => getPage(token, pageId),
@@ -125,6 +133,19 @@ export function PagesPage() {
     mutationFn: (pageId: string) => getPagePreview(token, pageId),
     onSuccess: (pagePreview) => setPreview(pagePreview),
   });
+  const restoreRevisionMutation = useMutation({
+    mutationFn: ({ pageId, revisionId }: { pageId: string; revisionId: string }) =>
+      restorePageRevision(token, pageId, revisionId),
+    onSuccess: async (page) => {
+      setForm(toFormState(page));
+      await queryClient.invalidateQueries({ queryKey: ["pages"] });
+      notify({
+        message: "Page has been restored from a revision.",
+        title: "Revision restored",
+        variant: "success",
+      });
+    },
+  });
   const deleteMutation = useMutation({
     mutationFn: (pageId: string) => deletePage(token, pageId),
     onSuccess: async () => {
@@ -149,6 +170,8 @@ export function PagesPage() {
     savePageMutation.error ??
     statusMutation.error ??
     previewMutation.error ??
+    revisionsQuery.error ??
+    restoreRevisionMutation.error ??
     deleteMutation.error;
 
   const columns: DataTableColumn<AdminPageSummary>[] = [
@@ -319,8 +342,15 @@ export function PagesPage() {
               isLoading={loadPageMutation.isPending}
               isSaving={savePageMutation.isPending}
               onPreview={(pageId) => previewMutation.mutate(pageId)}
+              onRestoreRevision={(revisionId) => {
+                if (form.id) {
+                  restoreRevisionMutation.mutate({ pageId: form.id, revisionId });
+                }
+              }}
               onChange={setForm}
               onSubmit={handleSubmit}
+              revisions={revisionsQuery.data ?? []}
+              revisionsLoading={revisionsQuery.isFetching || restoreRevisionMutation.isPending}
               token={token}
               slug={slugSuggestionQuery.data}
               validationError={savePageMutation.error}
@@ -353,7 +383,10 @@ function PageForm({
   isSaving,
   onChange,
   onPreview,
+  onRestoreRevision,
   onSubmit,
+  revisions,
+  revisionsLoading,
   slug,
   token,
   validationError,
@@ -363,7 +396,10 @@ function PageForm({
   isSaving: boolean;
   onChange: (form: PageFormState) => void;
   onPreview: (pageId: string) => void;
+  onRestoreRevision: (revisionId: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  revisions: AdminPageRevision[];
+  revisionsLoading: boolean;
   slug: { changed: boolean; slug: string } | undefined;
   token: string;
   validationError: unknown;
@@ -585,6 +621,14 @@ function PageForm({
         </Button>
       )}
 
+      {form.id && (
+        <RevisionPanel
+          isLoading={revisionsLoading}
+          revisions={revisions}
+          onRestore={onRestoreRevision}
+        />
+      )}
+
       <MediaPickerModal
         acceptedType="image"
         isOpen={isMediaPickerOpen}
@@ -603,6 +647,52 @@ function PageForm({
         }
       />
     </form>
+  );
+}
+
+function RevisionPanel({
+  isLoading,
+  onRestore,
+  revisions,
+}: {
+  isLoading: boolean;
+  onRestore: (revisionId: string) => void;
+  revisions: AdminPageRevision[];
+}) {
+  return (
+    <section className="revision-panel">
+      <header>
+        <div>
+          <p>History</p>
+          <h4>Revisions</h4>
+        </div>
+        {isLoading && <span>Loading</span>}
+      </header>
+      {revisions.length === 0 ? (
+        <p>No revisions yet.</p>
+      ) : (
+        <div className="revision-list">
+          {revisions.map((revision) => (
+            <article key={revision.id}>
+              <div>
+                <strong>Revision {revision.revisionNumber}</strong>
+                <span>{revision.title ?? revision.snapshot.title}</span>
+                <small>{formatDate(revision.createdAt)}</small>
+              </div>
+              <Button
+                disabled={isLoading}
+                size="sm"
+                type="button"
+                variant="secondary"
+                onClick={() => onRestore(revision.id)}
+              >
+                Restore
+              </Button>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
