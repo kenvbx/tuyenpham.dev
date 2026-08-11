@@ -37,7 +37,7 @@ const context: PermissionContext = {
 const pageId = "10000000-0000-4000-8000-000000000101";
 const revisionId = "10000000-0000-4000-8000-000000000104";
 
-function createTestHarness(pages: PageService) {
+function createTestHarness(pages: PageService, options: { hasPermission?: boolean } = {}) {
   const app = express();
   const audit = {
     log: vi.fn(async () => undefined),
@@ -46,7 +46,7 @@ function createTestHarness(pages: PageService) {
     verifyAuthorizationHeader: vi.fn(async () => user),
   } as unknown as AuthService;
   const permissions = {
-    hasPermission: vi.fn(() => true),
+    hasPermission: vi.fn(() => options.hasPermission ?? true),
     resolveUserContext: vi.fn(async () => context),
   } as unknown as PermissionService;
 
@@ -304,6 +304,46 @@ describe("page routes", () => {
         entityType: "page",
       }),
     );
+  });
+
+  it("sanitizes page HTML before writes", async () => {
+    const pages = {
+      createPage: vi.fn(async () => pageResponse()),
+    } as unknown as PageService;
+
+    await request(createTestHarness(pages).app)
+      .post("/admin/pages")
+      .set("Authorization", "Bearer token")
+      .send({
+        contentHtml:
+          '<p onclick="alert(1)">About</p><script>alert(1)</script><a href="javascript:alert(1)">Bad</a>',
+        title: "About",
+      })
+      .expect(201);
+
+    expect(pages.createPage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contentHtml: "<p>About</p>alert(1)<a>Bad</a>",
+      }),
+    );
+  });
+
+  it("rejects writes when the user lacks the required permission", async () => {
+    const pages = {
+      createPage: vi.fn(async () => pageResponse()),
+    } as unknown as PageService;
+
+    const response = await request(createTestHarness(pages, { hasPermission: false }).app)
+      .post("/admin/pages")
+      .set("Authorization", "Bearer token")
+      .send({ title: "About" })
+      .expect(403);
+
+    expect(response.body.error).toMatchObject({
+      code: "permission_denied",
+      details: { permission: "pages.create" },
+    });
+    expect(pages.createPage).not.toHaveBeenCalled();
   });
 
   it("updates pages slug and seo metadata", async () => {

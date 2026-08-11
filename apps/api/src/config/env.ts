@@ -27,6 +27,7 @@ const envSchema = z.object({
     )
     .pipe(z.array(z.string().url()).min(1)),
   DATABASE_URL: optionalUrlSchema,
+  ERROR_MONITORING_DSN: optionalUrlSchema,
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().max(65535).default(DEFAULT_PORT),

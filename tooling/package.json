@@ -8,9 +8,12 @@
     "db:migrate:dry-run": "node scripts/migrate.mjs --dry-run",
     "db:seed": "node scripts/seed.mjs",
     "db:seed:dry-run": "node scripts/seed.mjs --dry-run",
+    "backup:drill": "node scripts/backup-drill.mjs",
+    "backup:drill:dry-run": "node scripts/backup-drill.mjs --dry-run",
+    "perf:budget": "node scripts/performance-budget.mjs",
     "lint": "eslint . --ext .js,.mjs,.ts",
     "typecheck": "node -e \"console.log('tooling typecheck placeholder')\"",
-    "test": "node scripts/migrate.mjs --dry-run && node scripts/seed.mjs --dry-run",
+    "test": "node scripts/migrate.mjs --dry-run && node scripts/seed.mjs --dry-run && node scripts/backup-drill.mjs --dry-run",
     "format": "prettier --write ."
   },
   "dependencies": {

@@ -4,6 +4,9 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  build: {
+    chunkSizeWarningLimit: 750,
+  },
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

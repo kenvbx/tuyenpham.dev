@@ -16,6 +16,7 @@
     "test": "pnpm -r --if-present test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "perf:budget": "pnpm --filter @cms/tooling perf:budget",
     "db:migrate": "pnpm --filter @cms/tooling db:migrate",
     "db:seed": "pnpm --filter @cms/tooling db:seed"
   },

@@ -4,7 +4,9 @@ import express, { type Express, type Request, type Response } from "express";
 import { createAdminRouter } from "./admin/admin.routes.js";
 import { createAuthRouter } from "./auth/auth.routes.js";
 import { errorHandler, notFoundHandler } from "./http/error-handler.js";
+import { errorMonitoringHandler } from "./http/monitoring.js";
 import { requestLogger } from "./http/request-logger.js";
+import { corsPolicy, createRateLimit, securityHeaders } from "./http/security.js";
 import { publicCache } from "./public/public-cache.js";
 import { publicContentService } from "./public/public-content.service.js";
 import { createPublicRouter, renderSitemap } from "./public/public.routes.js";
@@ -13,8 +15,15 @@ export function createApp(): Express {
   const app = express();
 
   app.disable("x-powered-by");
+  app.use(securityHeaders);
+  app.use(corsPolicy);
   app.use(requestLogger);
   app.use(express.json({ limit: "1mb" }));
+  app.use("/auth", createRateLimit("auth"));
+  app.use("/public/analytics/events", createRateLimit("publicWrite"));
+  app.use("/public/contact", createRateLimit("publicWrite"));
+  app.use("/public/members/register", createRateLimit("publicWrite"));
+  app.use("/admin/media/upload", createRateLimit("upload"));
   app.use("/admin", (request, response, next) => {
     response.on("finish", () => {
       if (request.method !== "GET" && response.statusCode < 400) {
@@ -62,6 +71,7 @@ export function createApp(): Express {
   app.use("/public", createPublicRouter());
 
   app.use(notFoundHandler);
+  app.use(errorMonitoringHandler);
   app.use(errorHandler);
 
   return app;

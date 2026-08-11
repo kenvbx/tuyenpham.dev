@@ -3,6 +3,7 @@ import {
   createApiSuccessResponse,
   listQuerySchema,
   Permission,
+  sanitizeNullableHtml,
   type ApiListResponse,
 } from "@cms/shared";
 import { Router, type Router as ExpressRouter } from "express";
@@ -32,7 +33,7 @@ const seoBodySchema = z.object({
 });
 const postBodySchema = z.object({
   categoryIds: z.array(z.string().uuid()).default([]),
-  contentHtml: z.string().nullable().optional(),
+  contentHtml: z.string().transform(sanitizeNullableHtml).nullable().optional(),
   contentJson: z.record(z.string(), z.unknown()).nullable().optional(),
   contentText: z.string().nullable().optional(),
   excerpt: z.string().trim().max(1000).nullable().optional(),
