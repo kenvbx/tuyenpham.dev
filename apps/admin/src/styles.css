@@ -542,6 +542,7 @@ select {
 .roles-page,
 .audit-page,
 .media-page,
+.modules-page,
 .pages-page,
 .settings-page,
 .users-page {
@@ -641,6 +642,13 @@ select {
 
 .settings-layout {
   grid-template-columns: 220px minmax(0, 1fr);
+}
+
+.modules-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  gap: 18px;
+  align-items: start;
 }
 
 .media-layout {
@@ -857,6 +865,49 @@ select {
 .drawer-loading {
   margin: 0;
   color: #64748b;
+}
+
+.module-form {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.module-form h3 {
+  margin: 0;
+}
+
+.inline-reply {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.module-summary {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 18px;
+}
+
+.module-summary > strong {
+  font-size: 36px;
+}
+
+.module-summary > span {
+  color: #64748b;
+}
+
+.module-summary p {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid #e2e8f0;
+  margin: 0;
+  padding-top: 10px;
 }
 
 .media-sidebar {
@@ -2102,6 +2153,10 @@ select {
     grid-template-columns: 1fr;
   }
 
+  .modules-layout {
+    grid-template-columns: 1fr;
+  }
+
   .profile-layout,
   .roles-layout,
   .media-layout,
@@ -2139,6 +2194,7 @@ select {
   .roles-page,
   .audit-page,
   .media-page,
+  .modules-page,
   .settings-page,
   .users-page {
     padding: 18px;

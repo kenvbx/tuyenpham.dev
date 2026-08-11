@@ -60,6 +60,14 @@ export const navigationItems: NavigationItem[] = [
     to: "/admin/menus",
   },
   {
+    icon: "settings",
+    label: "Modules",
+    permission: Permission.GALLERIES_INDEX,
+    section: "content",
+    title: "Extensions",
+    to: "/admin/modules",
+  },
+  {
     icon: "users",
     label: "Users",
     permission: Permission.USERS_INDEX,

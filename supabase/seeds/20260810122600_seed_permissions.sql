@@ -46,7 +46,18 @@ values
   ('menu-nodes.edit', 'Edit menu nodes', 'Menus', 'Edit menu tree nodes.', true),
   ('seo-meta.edit', 'Edit SEO meta', 'SEO', 'Edit entity SEO metadata.', true),
   ('slugs.edit', 'Edit slugs', 'Slugs', 'Edit entity slugs.', true),
-  ('audit-logs.index', 'View audit logs', 'Audit logs', 'View audit logs.', true)
+  ('audit-logs.index', 'View audit logs', 'Audit logs', 'View audit logs.', true),
+  ('galleries.index', 'View galleries', 'Galleries', 'View image galleries.', true),
+  ('galleries.create', 'Create galleries', 'Galleries', 'Create image galleries.', true),
+  ('galleries.edit', 'Edit galleries', 'Galleries', 'Edit image galleries and items.', true),
+  ('galleries.delete', 'Delete galleries', 'Galleries', 'Delete image galleries.', true),
+  ('contacts.index', 'View contacts', 'Contacts', 'View contact submissions.', true),
+  ('contacts.edit', 'Manage contacts', 'Contacts', 'Reply, archive, and delete contact submissions.', true),
+  ('members.index', 'View members', 'Members', 'View public members.', true),
+  ('members.edit', 'Manage members', 'Members', 'Manage public member records.', true),
+  ('localization.index', 'View localization', 'Localization', 'View languages and translations.', true),
+  ('localization.edit', 'Manage localization', 'Localization', 'Manage languages and translations.', true),
+  ('analytics.index', 'View analytics', 'Analytics', 'View analytics and reporting.', true)
 on conflict (flag) do update
 set
   name = excluded.name,

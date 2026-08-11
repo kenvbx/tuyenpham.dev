@@ -46,6 +46,17 @@ export const Permission = {
   SEO_META_EDIT: "seo-meta.edit",
   SLUGS_EDIT: "slugs.edit",
   AUDIT_LOGS_INDEX: "audit-logs.index",
+  GALLERIES_INDEX: "galleries.index",
+  GALLERIES_CREATE: "galleries.create",
+  GALLERIES_EDIT: "galleries.edit",
+  GALLERIES_DELETE: "galleries.delete",
+  CONTACTS_INDEX: "contacts.index",
+  CONTACTS_EDIT: "contacts.edit",
+  MEMBERS_INDEX: "members.index",
+  MEMBERS_EDIT: "members.edit",
+  LOCALIZATION_INDEX: "localization.index",
+  LOCALIZATION_EDIT: "localization.edit",
+  ANALYTICS_INDEX: "analytics.index",
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];

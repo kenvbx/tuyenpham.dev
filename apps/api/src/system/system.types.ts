@@ -1,14 +1,24 @@
 export type BackupExportTable =
+  | "analytics_events"
   | "categories"
+  | "contact_replies"
+  | "contact_submissions"
+  | "content_translations"
+  | "galleries"
+  | "gallery_items"
+  | "languages"
   | "media_files"
   | "media_folders"
+  | "members"
   | "menu_nodes"
   | "menus"
   | "pages"
   | "posts"
   | "settings"
   | "slugs"
-  | "tags";
+  | "tags"
+  | "translation_keys"
+  | "translations";
 
 export type BackupExport = {
   format: "cms-json";

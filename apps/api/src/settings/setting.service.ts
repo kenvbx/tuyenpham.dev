@@ -41,6 +41,12 @@ const SETTING_SELECT = "namespace,key,value,is_public,updated_at";
 const PUBLIC_SETTING_KEYS = new Set([
   "appearance.custom-css",
   "appearance.custom-js",
+  "analytics.ga-measurement-id",
+  "captcha.enabled",
+  "captcha.provider",
+  "cookie-consent.enabled",
+  "cookie-consent.policy-url",
+  "cookie-consent.position",
   "media.allowed-mime-types",
   "media.max-file-size-mb",
   "seo.default-meta-description",
@@ -51,6 +57,8 @@ const PUBLIC_SETTING_KEYS = new Set([
   "site.logo-url",
   "site.name",
   "site.timezone",
+  "social-login.github-enabled",
+  "social-login.google-enabled",
 ]);
 
 export class SettingService {

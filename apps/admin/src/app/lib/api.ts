@@ -561,6 +561,78 @@ export type ImportPlan = {
   warnings: string[];
 };
 
+export type AdminGalleryItem = {
+  alt: string | null;
+  caption: string | null;
+  id: string;
+  linkUrl: string | null;
+  mediaFileId: string | null;
+  sortOrder: number;
+  title: string | null;
+};
+
+export type AdminGallery = {
+  createdAt: string;
+  description: string | null;
+  id: string;
+  items: AdminGalleryItem[];
+  name: string;
+  slug: string;
+  status: "archived" | "draft" | "published" | string;
+  updatedAt: string;
+};
+
+export type GalleryInput = {
+  description?: string | null;
+  items: Array<Partial<AdminGalleryItem>>;
+  name: string;
+  slug: string;
+  status: "archived" | "draft" | "published";
+};
+
+export type ContactSubmission = {
+  createdAt: string;
+  email: string;
+  id: string;
+  message: string;
+  name: string;
+  phone: string | null;
+  replies: Array<{ body: string; id: string; sentAt: string; sentBy: string | null }>;
+  status: "archived" | "deleted" | "new" | "read" | "replied" | string;
+  subject: string | null;
+};
+
+export type AdminMember = {
+  createdAt: string;
+  displayName: string | null;
+  email: string;
+  id: string;
+  status: "active" | "inactive" | "suspended" | string;
+};
+
+export type Language = {
+  code: string;
+  id: string;
+  isActive: boolean;
+  isDefault: boolean;
+  name: string;
+  nativeName: string | null;
+  sortOrder: number;
+};
+
+export type TranslationEntry = {
+  id: string;
+  key: string;
+  namespace: string;
+  translations: Record<string, string>;
+};
+
+export type AnalyticsSummary = {
+  events: Array<{ count: number; key: string }>;
+  topPaths: Array<{ count: number; key: string }>;
+  total: number;
+};
+
 type RequestOptions = {
   body?: unknown;
   method?: "DELETE" | "GET" | "PATCH" | "POST";
@@ -767,6 +839,171 @@ export async function createImportPlan(
     method: "POST",
     token,
   });
+
+  return response.data;
+}
+
+export async function listGalleries(token: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminGallery[]>>("/admin/galleries", {
+    token,
+  });
+
+  return response.data;
+}
+
+export async function createGallery(token: string, input: GalleryInput) {
+  const response = await apiRequest<ApiSuccessResponse<AdminGallery>>("/admin/galleries", {
+    body: input,
+    method: "POST",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function updateGallery(
+  token: string,
+  galleryId: string,
+  input: Partial<GalleryInput>,
+) {
+  const response = await apiRequest<ApiSuccessResponse<AdminGallery>>(
+    `/admin/galleries/${galleryId}`,
+    {
+      body: input,
+      method: "PATCH",
+      token,
+    },
+  );
+
+  return response.data;
+}
+
+export async function deleteGallery(token: string, galleryId: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminGallery>>(
+    `/admin/galleries/${galleryId}`,
+    {
+      method: "DELETE",
+      token,
+    },
+  );
+
+  return response.data;
+}
+
+export async function listContacts(token: string) {
+  const response = await apiRequest<ApiSuccessResponse<ContactSubmission[]>>("/admin/contacts", {
+    token,
+  });
+
+  return response.data;
+}
+
+export async function updateContact(token: string, contactId: string, status: string) {
+  const response = await apiRequest<ApiSuccessResponse<ContactSubmission>>(
+    `/admin/contacts/${contactId}`,
+    {
+      body: { status },
+      method: "PATCH",
+      token,
+    },
+  );
+
+  return response.data;
+}
+
+export async function replyContact(token: string, contactId: string, body: string) {
+  const response = await apiRequest<ApiSuccessResponse<ContactSubmission>>(
+    `/admin/contacts/${contactId}/replies`,
+    {
+      body: { body },
+      method: "POST",
+      token,
+    },
+  );
+
+  return response.data;
+}
+
+export async function deleteContact(token: string, contactId: string) {
+  const response = await apiRequest<ApiSuccessResponse<ContactSubmission>>(
+    `/admin/contacts/${contactId}`,
+    {
+      method: "DELETE",
+      token,
+    },
+  );
+
+  return response.data;
+}
+
+export async function listMembers(token: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminMember[]>>("/admin/members", { token });
+
+  return response.data;
+}
+
+export async function updateMember(token: string, memberId: string, input: Partial<AdminMember>) {
+  const response = await apiRequest<ApiSuccessResponse<AdminMember>>(`/admin/members/${memberId}`, {
+    body: input,
+    method: "PATCH",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function listLanguages(token: string) {
+  const response = await apiRequest<ApiSuccessResponse<Language[]>>(
+    "/admin/localization/languages",
+    { token },
+  );
+
+  return response.data;
+}
+
+export async function saveLanguage(
+  token: string,
+  input: Partial<Language> & { code: string; name: string },
+) {
+  const response = await apiRequest<ApiSuccessResponse<Language>>("/admin/localization/languages", {
+    body: input,
+    method: "POST",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function listTranslations(token: string) {
+  const response = await apiRequest<ApiSuccessResponse<TranslationEntry[]>>(
+    "/admin/localization/translations",
+    { token },
+  );
+
+  return response.data;
+}
+
+export async function saveTranslation(
+  token: string,
+  input: { key: string; namespace: string; translations: Record<string, string> },
+) {
+  const response = await apiRequest<ApiSuccessResponse<TranslationEntry>>(
+    "/admin/localization/translations",
+    {
+      body: input,
+      method: "POST",
+      token,
+    },
+  );
+
+  return response.data;
+}
+
+export async function getAnalyticsSummary(token: string) {
+  const response = await apiRequest<ApiSuccessResponse<AnalyticsSummary>>(
+    "/admin/analytics/summary",
+    { token },
+  );
 
   return response.data;
 }

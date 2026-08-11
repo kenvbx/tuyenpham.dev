@@ -27,15 +27,25 @@ export type SystemServiceOptions = {
 
 const EXPORT_TABLES: BackupExportTable[] = [
   "settings",
+  "languages",
+  "translation_keys",
+  "translations",
+  "content_translations",
   "slugs",
   "media_folders",
   "media_files",
+  "galleries",
+  "gallery_items",
   "pages",
   "posts",
   "categories",
   "tags",
   "menus",
   "menu_nodes",
+  "contact_submissions",
+  "contact_replies",
+  "members",
+  "analytics_events",
 ];
 
 export class SystemService {

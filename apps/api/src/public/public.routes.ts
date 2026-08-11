@@ -2,6 +2,9 @@ import { createApiListResponse, createApiSuccessResponse } from "@cms/shared";
 import { Router, type Router as ExpressRouter } from "express";
 import { z } from "zod";
 
+import { createPublicAnalyticsRouter } from "../analytics/analytics.routes.js";
+import { createPublicContactRouter } from "../contacts/public-contact.routes.js";
+import { createPublicMemberRouter } from "../members/public-member.routes.js";
 import { publicCache, type PublicCache } from "./public-cache.js";
 import { publicContentService, type PublicContentService } from "./public-content.service.js";
 import { publicResolverService, type PublicResolverService } from "./public-resolver.service.js";
@@ -73,6 +76,10 @@ export function createPublicRouter(options: PublicRouterOptions = {}): ExpressRo
   const cache = options.cache ?? publicCache;
   const content = options.content ?? publicContentService;
   const resolver = options.resolver ?? publicResolverService;
+
+  router.use("/analytics", createPublicAnalyticsRouter());
+  router.use("/contact", createPublicContactRouter());
+  router.use("/members", createPublicMemberRouter());
 
   router.get("/resolve", async (request, response, next) => {
     try {
