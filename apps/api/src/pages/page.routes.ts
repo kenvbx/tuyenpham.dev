@@ -55,6 +55,13 @@ const updatePageStatusBodySchema = z.object({
 const pageParamsSchema = z.object({
   pageId: z.string().uuid(),
 });
+const pagePreviewHtmlQuerySchema = z.object({
+  expiresAt: z.iso.datetime(),
+  token: z
+    .string()
+    .trim()
+    .regex(/^[a-f0-9]{64}$/u),
+});
 const listPagesQuerySchema = listQuerySchema.extend({
   status: pageStatusSchema.optional(),
 });
@@ -137,6 +144,34 @@ export function createPageRouter(options: PageRouterOptions = {}): ExpressRouter
       }
     },
   );
+
+  router.get(
+    "/:pageId/preview",
+    requireAuth(auth),
+    requirePermission(Permission.PAGES_INDEX, permissions),
+    async (request, response, next) => {
+      try {
+        const params = pageParamsSchema.parse(request.params);
+        const preview = await pages.createPreview(params.pageId);
+
+        response.json(createApiSuccessResponse(preview));
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.get("/:pageId/preview/html", async (request, response, next) => {
+    try {
+      const params = pageParamsSchema.parse(request.params);
+      const query = pagePreviewHtmlQuerySchema.parse(request.query);
+      const html = await pages.renderPreviewHtml(params.pageId, query.token, query.expiresAt);
+
+      response.type("html").send(html);
+    } catch (error) {
+      next(error);
+    }
+  });
 
   router.post(
     "/",

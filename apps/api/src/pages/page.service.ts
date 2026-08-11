@@ -1,6 +1,9 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+
 import { createPagination } from "@cms/shared";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { appEnv } from "../config/env.js";
 import { HttpError } from "../http/http-error.js";
 import { slugService, type SlugService } from "../slugs/slug.service.js";
 import { supabase } from "../supabase/client.js";
@@ -9,6 +12,7 @@ import type {
   ListPagesParams,
   PageAuthor,
   PageDetail,
+  PagePreview,
   PageSeoInput,
   PageSeoMeta,
   PageSlug,
@@ -90,6 +94,10 @@ type AuthorRow = {
   display_name: string | null;
   email: string;
   id: string;
+};
+
+type RevisionRow = {
+  revision_number: number;
 };
 
 const PAGE_SELECT =
@@ -223,6 +231,7 @@ export class PageService {
 
   async updatePage(pageId: string, input: UpdatePageInput): Promise<PageDetail> {
     const existingPage = await this.loadPageById(pageId);
+    const existingDetail = await this.getPage(pageId);
     const statusPatch =
       input.status !== undefined || input.publishedAt !== undefined
         ? resolveStatusPatch({
@@ -241,6 +250,12 @@ export class PageService {
       ...statusPatch,
       ...(input.title !== undefined ? { title: input.title } : {}),
     };
+    const hasChanges =
+      Object.keys(patch).length > 0 || input.seo !== undefined || input.slug !== undefined;
+
+    if (hasChanges) {
+      await this.createRevision(existingDetail, input.updatedBy ?? null, "page.update");
+    }
 
     if (Object.keys(patch).length > 0) {
       const result = await this.from("pages").update(patch).eq("id", pageId);
@@ -267,6 +282,8 @@ export class PageService {
 
   async updatePageStatus(pageId: string, input: UpdatePageStatusInput): Promise<PageDetail> {
     const existingPage = await this.loadPageById(pageId);
+    const existingDetail = await this.getPage(pageId);
+    await this.createRevision(existingDetail, input.updatedBy ?? null, "page.status.update");
     const result = await this.from("pages")
       .update(
         resolveStatusPatch({
@@ -286,6 +303,39 @@ export class PageService {
     }
 
     return this.getPage(pageId);
+  }
+
+  async createPreview(pageId: string): Promise<PagePreview> {
+    const page = await this.getPage(pageId);
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const previewToken = createPreviewToken(page.id, expiresAt);
+    const path = `/admin/pages/${page.id}/preview/html?expiresAt=${encodeURIComponent(expiresAt)}&token=${encodeURIComponent(previewToken)}`;
+
+    return {
+      expiresAt,
+      html: renderPreviewHtml(page),
+      page,
+      previewToken,
+      previewUrl: new URL(path, appEnv.APP_URL).toString(),
+    };
+  }
+
+  async renderPreviewHtml(pageId: string, token: string, expiresAt: string): Promise<string> {
+    if (new Date(expiresAt).getTime() < Date.now()) {
+      throw new HttpError("Page preview token has expired.", {
+        code: "page_preview_expired",
+        statusCode: 401,
+      });
+    }
+
+    if (!verifyPreviewToken(pageId, expiresAt, token)) {
+      throw new HttpError("Page preview token is invalid.", {
+        code: "page_preview_token_invalid",
+        statusCode: 401,
+      });
+    }
+
+    return renderPreviewHtml(await this.getPage(pageId));
   }
 
   async deletePage(pageId: string): Promise<PageDetail> {
@@ -534,6 +584,53 @@ export class PageService {
       });
     }
   }
+
+  private async createRevision(
+    page: PageDetail,
+    createdBy: string | null,
+    reason: string,
+  ): Promise<void> {
+    const revisionNumber = await this.nextRevisionNumber(page.id);
+    const result = await this.from("revisions").insert({
+      created_by: createdBy,
+      entity_id: page.id,
+      entity_type: "page",
+      metadata: {
+        reason,
+        status: page.status,
+      },
+      revision_number: revisionNumber,
+      snapshot: page,
+      title: page.title,
+    });
+
+    if (result.error) {
+      throw new HttpError("Unable to create page revision.", {
+        code: "page_revision_create_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+  }
+
+  private async nextRevisionNumber(pageId: string): Promise<number> {
+    const result = (await this.from("revisions")
+      .select("revision_number")
+      .eq("entity_type", "page")
+      .eq("entity_id", pageId)
+      .order("revision_number", { ascending: false })
+      .range(0, 0)) as SupabaseQueryResult<RevisionRow[]>;
+
+    if (result.error) {
+      throw new HttpError("Unable to inspect page revisions.", {
+        code: "page_revision_lookup_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    return (result.data?.[0]?.revision_number ?? 0) + 1;
+  }
 }
 
 export const pageService = new PageService();
@@ -645,4 +742,53 @@ function resolveStatusPatch(input: {
     ...(input.publishedAt !== undefined ? { published_at: input.publishedAt } : {}),
     status: input.status,
   };
+}
+
+function createPreviewToken(pageId: string, expiresAt: string) {
+  return createHmac("sha256", appEnv.SUPABASE_SERVICE_ROLE_KEY)
+    .update(`${pageId}:${expiresAt}`)
+    .digest("hex");
+}
+
+function verifyPreviewToken(pageId: string, expiresAt: string, token: string) {
+  const expectedToken = createPreviewToken(pageId, expiresAt);
+  const expected = Buffer.from(expectedToken, "hex");
+  const received = Buffer.from(token, "hex");
+
+  return received.length === expected.length && timingSafeEqual(received, expected);
+}
+
+function renderPreviewHtml(page: PageDetail) {
+  const title = escapeHtml(page.seo?.metaTitle || page.title);
+  const description = escapeHtml(page.seo?.metaDescription || page.excerpt || "");
+  const canonical = page.seo?.canonicalUrl
+    ? `<link rel="canonical" href="${escapeHtml(page.seo.canonicalUrl)}">`
+    : "";
+
+  return `<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>${title}</title>
+  <meta name="description" content="${description}">
+  ${canonical}
+</head>
+<body>
+  <article>
+    <h1>${escapeHtml(page.title)}</h1>
+    ${page.excerpt ? `<p>${escapeHtml(page.excerpt)}</p>` : ""}
+    ${page.contentHtml ?? ""}
+  </article>
+</body>
+</html>`;
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }

@@ -7,6 +7,8 @@ import { PermissionGate } from "../auth/PermissionGate";
 import { useAuth } from "../auth/auth-context";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
+import { MediaPickerModal } from "../components/MediaPickerModal";
+import { Modal } from "../components/Modal";
 import { ErrorState } from "../components/PageState";
 import { PageHeader } from "../components/PageHeader";
 import { ValidationSummary } from "../components/ValidationSummary";
@@ -15,11 +17,13 @@ import {
   createPage,
   deletePage,
   getPage,
+  getPagePreview,
   listPages,
   suggestPageSlug,
   updatePage,
   updatePageStatus,
   type AdminPageDetail,
+  type AdminPagePreview,
   type AdminPageStatus,
   type AdminPageSummary,
   type PageFormInput,
@@ -44,6 +48,10 @@ const emptyForm: PageFormState = {
     metaTitle: "",
     nofollow: false,
     noindex: false,
+    ogDescription: "",
+    ogImageId: "",
+    ogImageUrl: "",
+    ogTitle: "",
   },
   slug: "",
   status: "draft",
@@ -58,6 +66,7 @@ export function PagesPage() {
   const [filters, setFilters] = useState({ page: 1, perPage: 10, search: "", status: "" });
   const [form, setForm] = useState<PageFormState>(emptyForm);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<AdminPagePreview | null>(null);
   const pagesQueryKey = ["pages", filters];
 
   const pagesQuery = useQuery({
@@ -112,6 +121,10 @@ export function PagesPage() {
       });
     },
   });
+  const previewMutation = useMutation({
+    mutationFn: (pageId: string) => getPagePreview(token, pageId),
+    onSuccess: (pagePreview) => setPreview(pagePreview),
+  });
   const deleteMutation = useMutation({
     mutationFn: (pageId: string) => deletePage(token, pageId),
     onSuccess: async () => {
@@ -135,6 +148,7 @@ export function PagesPage() {
     loadPageMutation.error ??
     savePageMutation.error ??
     statusMutation.error ??
+    previewMutation.error ??
     deleteMutation.error;
 
   const columns: DataTableColumn<AdminPageSummary>[] = [
@@ -304,8 +318,10 @@ export function PagesPage() {
               form={form}
               isLoading={loadPageMutation.isPending}
               isSaving={savePageMutation.isPending}
+              onPreview={(pageId) => previewMutation.mutate(pageId)}
               onChange={setForm}
               onSubmit={handleSubmit}
+              token={token}
               slug={slugSuggestionQuery.data}
               validationError={savePageMutation.error}
             />
@@ -326,6 +342,7 @@ export function PagesPage() {
           }
         }}
       />
+      <PreviewModal preview={preview} onClose={() => setPreview(null)} />
     </section>
   );
 }
@@ -335,18 +352,24 @@ function PageForm({
   isLoading,
   isSaving,
   onChange,
+  onPreview,
   onSubmit,
   slug,
+  token,
   validationError,
 }: {
   form: PageFormState;
   isLoading: boolean;
   isSaving: boolean;
   onChange: (form: PageFormState) => void;
+  onPreview: (pageId: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   slug: { changed: boolean; slug: string } | undefined;
+  token: string;
   validationError: unknown;
 }) {
+  const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
+
   return (
     <form className="page-form" onSubmit={onSubmit}>
       <div>
@@ -423,28 +446,32 @@ function PageForm({
 
       <label>
         Content
-        <textarea
-          className="content-textarea"
-          disabled={isLoading}
+        <RichTextEditor
           value={form.contentHtml ?? ""}
-          onChange={(event) =>
+          onChange={(contentHtml) =>
             onChange({
               ...form,
-              contentHtml: event.target.value,
-              contentText: stripHtml(event.target.value),
+              contentHtml,
+              contentText: stripHtml(contentHtml),
             })
           }
         />
       </label>
 
-      <label>
-        Featured image ID
-        <Input
-          disabled={isLoading}
-          value={form.featuredImageId ?? ""}
-          onChange={(event) => onChange({ ...form, featuredImageId: event.target.value })}
-        />
-      </label>
+      <div className="media-reference-field">
+        <label>
+          Featured image ID
+          <Input
+            disabled={isLoading}
+            value={form.featuredImageId ?? ""}
+            onChange={(event) => onChange({ ...form, featuredImageId: event.target.value })}
+          />
+        </label>
+        <Button type="button" variant="secondary" onClick={() => setIsMediaPickerOpen(true)}>
+          <CmsIcon name="media" />
+          Pick image
+        </Button>
+      </div>
 
       <fieldset className="seo-fieldset">
         <legend>SEO</legend>
@@ -478,6 +505,47 @@ function PageForm({
             }
           />
         </label>
+        <label>
+          OG title
+          <Input
+            maxLength={160}
+            value={form.seo.ogTitle ?? ""}
+            onChange={(event) =>
+              onChange({ ...form, seo: { ...form.seo, ogTitle: event.target.value } })
+            }
+          />
+        </label>
+        <label>
+          OG description
+          <textarea
+            maxLength={320}
+            value={form.seo.ogDescription ?? ""}
+            onChange={(event) =>
+              onChange({ ...form, seo: { ...form.seo, ogDescription: event.target.value } })
+            }
+          />
+        </label>
+        <div className="form-grid">
+          <label>
+            OG image ID
+            <Input
+              value={form.seo.ogImageId ?? ""}
+              onChange={(event) =>
+                onChange({ ...form, seo: { ...form.seo, ogImageId: event.target.value } })
+              }
+            />
+          </label>
+          <label>
+            OG image URL
+            <Input
+              type="url"
+              value={form.seo.ogImageUrl ?? ""}
+              onChange={(event) =>
+                onChange({ ...form, seo: { ...form.seo, ogImageUrl: event.target.value } })
+              }
+            />
+          </label>
+        </div>
         <div className="inline-checks">
           <label>
             <input
@@ -505,7 +573,87 @@ function PageForm({
       <Button disabled={isSaving || isLoading} type="submit">
         {isSaving ? "Saving" : form.id ? "Save changes" : "Create page"}
       </Button>
+      {form.id && (
+        <Button
+          disabled={isSaving || isLoading}
+          type="button"
+          variant="secondary"
+          onClick={() => onPreview(form.id ?? "")}
+        >
+          <CmsIcon name="fileText" />
+          Preview
+        </Button>
+      )}
+
+      <MediaPickerModal
+        acceptedType="image"
+        isOpen={isMediaPickerOpen}
+        token={token}
+        onClose={() => setIsMediaPickerOpen(false)}
+        onSelect={(file) =>
+          onChange({
+            ...form,
+            featuredImageId: file.id,
+            seo: {
+              ...form.seo,
+              ogImageId: form.seo.ogImageId || file.id,
+              ogImageUrl: form.seo.ogImageUrl || file.url,
+            },
+          })
+        }
+      />
     </form>
+  );
+}
+
+function RichTextEditor({ onChange, value }: { onChange: (value: string) => void; value: string }) {
+  return (
+    <div className="rich-editor">
+      <div className="editor-toolbar" aria-label="Editor toolbar">
+        <button type="button" onClick={() => onChange(`${value}<h2>Heading</h2>`)}>
+          H2
+        </button>
+        <button type="button" onClick={() => onChange(`${value}<p>Paragraph text</p>`)}>
+          P
+        </button>
+        <button type="button" onClick={() => onChange(`${value}<strong>Bold text</strong>`)}>
+          B
+        </button>
+        <button type="button" onClick={() => onChange(`${value}<ul><li>List item</li></ul>`)}>
+          List
+        </button>
+      </div>
+      <textarea
+        className="content-textarea"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <div className="editor-preview" dangerouslySetInnerHTML={{ __html: value || "<p></p>" }} />
+    </div>
+  );
+}
+
+function PreviewModal({
+  onClose,
+  preview,
+}: {
+  onClose: () => void;
+  preview: AdminPagePreview | null;
+}) {
+  return (
+    <Modal isOpen={Boolean(preview)} title="Page preview" onClose={onClose}>
+      {preview && (
+        <div className="page-preview-modal">
+          <div className="preview-meta">
+            <span>Expires {formatDate(preview.expiresAt)}</span>
+            <a href={preview.previewUrl} target="_blank" rel="noreferrer">
+              Open signed preview
+            </a>
+          </div>
+          <iframe title={`Preview ${preview.page.title}`} srcDoc={preview.html} />
+        </div>
+      )}
+    </Modal>
   );
 }
 
@@ -523,6 +671,10 @@ function toFormState(page: AdminPageDetail): PageFormState {
       metaTitle: page.seo?.metaTitle ?? "",
       nofollow: page.seo?.nofollow ?? false,
       noindex: page.seo?.noindex ?? false,
+      ogDescription: page.seo?.ogDescription ?? "",
+      ogImageId: page.seo?.ogImageId ?? "",
+      ogImageUrl: page.seo?.ogImageUrl ?? "",
+      ogTitle: page.seo?.ogTitle ?? "",
     },
     slug: page.slug?.key ?? "",
     status: page.status as AdminPageStatus,

@@ -203,6 +203,14 @@ export type AdminPageSeoMeta = {
   structuredData: Record<string, unknown>;
 };
 
+export type AdminPagePreview = {
+  expiresAt: string;
+  html: string;
+  page: AdminPageDetail;
+  previewToken: string;
+  previewUrl: string;
+};
+
 export type AdminPageAuthor = {
   displayName: string | null;
   email: string;
@@ -251,6 +259,10 @@ export type PageFormInput = {
     metaTitle?: string | null | undefined;
     nofollow?: boolean | undefined;
     noindex?: boolean | undefined;
+    ogDescription?: string | null | undefined;
+    ogImageId?: string | null | undefined;
+    ogImageUrl?: string | null | undefined;
+    ogTitle?: string | null | undefined;
   };
   slug?: string | undefined;
   status?: AdminPageStatus | undefined;
@@ -451,6 +463,15 @@ export async function getPage(token: string, pageId: string) {
   const response = await apiRequest<ApiSuccessResponse<AdminPageDetail>>(`/admin/pages/${pageId}`, {
     token,
   });
+
+  return response.data;
+}
+
+export async function getPagePreview(token: string, pageId: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminPagePreview>>(
+    `/admin/pages/${pageId}/preview`,
+    { token },
+  );
 
   return response.data;
 }

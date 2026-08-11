@@ -147,6 +147,52 @@ describe("page routes", () => {
     expect(pages.getPage).toHaveBeenCalledWith(pageId);
   });
 
+  it("returns signed page previews", async () => {
+    const pages = {
+      createPreview: vi.fn(async () => ({
+        expiresAt: "2026-08-11T01:15:00.000Z",
+        html: "<!doctype html><h1>About</h1>",
+        page: pageResponse(),
+        previewToken: "signed-token",
+        previewUrl:
+          "http://localhost:5173/preview/pages/10000000-0000-4000-8000-000000000101?token=signed-token",
+      })),
+    } as unknown as PageService;
+
+    const response = await request(createTestHarness(pages).app)
+      .get(`/admin/pages/${pageId}/preview`)
+      .set("Authorization", "Bearer token")
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      data: {
+        previewToken: "signed-token",
+        page: { id: pageId },
+      },
+    });
+    expect(pages.createPreview).toHaveBeenCalledWith(pageId);
+  });
+
+  it("renders signed page preview html", async () => {
+    const pages = {
+      renderPreviewHtml: vi.fn(async () => "<!doctype html><h1>About</h1>"),
+    } as unknown as PageService;
+
+    const response = await request(createTestHarness(pages).app)
+      .get(
+        `/admin/pages/${pageId}/preview/html?expiresAt=2026-08-11T01%3A15%3A00.000Z&token=${"a".repeat(64)}`,
+      )
+      .expect(200);
+
+    expect(response.headers["content-type"]).toContain("text/html");
+    expect(response.text).toContain("<h1>About</h1>");
+    expect(pages.renderPreviewHtml).toHaveBeenCalledWith(
+      pageId,
+      "a".repeat(64),
+      "2026-08-11T01:15:00.000Z",
+    );
+  });
+
   it("suggests unique page slugs before create or update", async () => {
     const pages = {
       suggestSlug: vi.fn(async () => ({

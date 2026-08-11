@@ -57,6 +57,14 @@ export type PageDetail = PageSummary & {
   seo: PageSeoMeta | null;
 };
 
+export type PagePreview = {
+  expiresAt: string;
+  html: string;
+  page: PageDetail;
+  previewToken: string;
+  previewUrl: string;
+};
+
 export type PageSeoInput = {
   canonicalUrl?: string | null | undefined;
   metaDescription?: string | null | undefined;
