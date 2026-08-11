@@ -37,6 +37,8 @@ const context: PermissionContext = {
 const postId = "10000000-0000-4000-8000-000000000201";
 const categoryId = "10000000-0000-4000-8000-000000000202";
 const tagId = "10000000-0000-4000-8000-000000000203";
+const relatedPostId = "10000000-0000-4000-8000-000000000206";
+const revisionId = "10000000-0000-4000-8000-000000000207";
 
 function createTestHarness(posts: PostService) {
   const app = express();
@@ -86,6 +88,29 @@ function postResponse() {
     featuredImageId: null,
     id: postId,
     publishedAt: null,
+    relatedPosts: [
+      {
+        authorId: user.id,
+        categories: [],
+        createdAt: "2026-08-10T00:00:00.000Z",
+        deletedAt: null,
+        excerpt: null,
+        featuredImageId: null,
+        id: relatedPostId,
+        publishedAt: null,
+        slug: {
+          id: "10000000-0000-4000-8000-000000000208",
+          key: "related-post",
+          locale: "vi",
+          prefix: "",
+        },
+        status: "published",
+        tags: [],
+        title: "Related post",
+        updatedAt: "2026-08-10T00:00:00.000Z",
+        viewsCount: 4,
+      },
+    ],
     seo: {
       canonicalUrl: null,
       id: "10000000-0000-4000-8000-000000000204",
@@ -185,6 +210,7 @@ describe("post routes", () => {
       .send({
         categoryIds: [categoryId],
         contentHtml: "<p>Post body</p>",
+        relatedPostIds: [relatedPostId],
         seo: { metaTitle: "First post" },
         slug: "first-post",
         tagIds: [tagId],
@@ -197,6 +223,7 @@ describe("post routes", () => {
       authorId: user.id,
       categoryIds: [categoryId],
       contentHtml: "<p>Post body</p>",
+      relatedPostIds: [relatedPostId],
       seo: { metaTitle: "First post" },
       slug: "first-post",
       tagIds: [tagId],
@@ -224,6 +251,7 @@ describe("post routes", () => {
       .send({
         categoryIds: [categoryId],
         contentHtml: "<p>Updated body</p>",
+        relatedPostIds: [relatedPostId],
         seo: { metaTitle: "Updated post" },
         slug: "updated-post",
         tagIds: [tagId],
@@ -235,6 +263,7 @@ describe("post routes", () => {
     expect(posts.updatePost).toHaveBeenCalledWith(postId, {
       categoryIds: [categoryId],
       contentHtml: "<p>Updated body</p>",
+      relatedPostIds: [relatedPostId],
       seo: { metaTitle: "Updated post" },
       slug: "updated-post",
       tagIds: [tagId],
@@ -247,6 +276,84 @@ describe("post routes", () => {
         actorId: user.id,
         entityId: postId,
         entityType: "blog-post",
+      }),
+    );
+  });
+
+  it("updates post status with publish permission and audits the action", async () => {
+    const posts = {
+      updatePostStatus: vi.fn(async () => ({
+        ...postResponse(),
+        publishedAt: "2026-08-11T00:00:00.000Z",
+        status: "published",
+      })),
+    } as unknown as PostService;
+    const { app, audit } = createTestHarness(posts);
+
+    const response = await request(app)
+      .post(`/admin/posts/${postId}/status`)
+      .set("Authorization", "Bearer token")
+      .send({ publishedAt: "2026-08-11T00:00:00.000Z", status: "published" })
+      .expect(200);
+
+    expect(response.body.data.status).toBe("published");
+    expect(posts.updatePostStatus).toHaveBeenCalledWith(postId, {
+      publishedAt: "2026-08-11T00:00:00.000Z",
+      status: "published",
+      updatedBy: user.id,
+    });
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "blog-posts.status.update",
+        actorId: user.id,
+        entityId: postId,
+        entityType: "blog-post",
+      }),
+    );
+  });
+
+  it("lists post revisions", async () => {
+    const posts = {
+      listRevisions: vi.fn(async () => [
+        {
+          createdAt: "2026-08-11T00:00:00.000Z",
+          createdBy: user.id,
+          id: revisionId,
+          metadata: { reason: "blog-posts.update" },
+          revisionNumber: 1,
+          snapshot: postResponse(),
+          title: "First post",
+        },
+      ]),
+    } as unknown as PostService;
+
+    const response = await request(createTestHarness(posts).app)
+      .get(`/admin/posts/${postId}/revisions`)
+      .set("Authorization", "Bearer token")
+      .expect(200);
+
+    expect(response.body.data).toMatchObject([{ id: revisionId, revisionNumber: 1 }]);
+    expect(posts.listRevisions).toHaveBeenCalledWith(postId);
+  });
+
+  it("restores post revisions and audits the action", async () => {
+    const posts = {
+      restoreRevision: vi.fn(async () => postResponse()),
+    } as unknown as PostService;
+    const { app, audit } = createTestHarness(posts);
+
+    const response = await request(app)
+      .post(`/admin/posts/${postId}/revisions/${revisionId}/restore`)
+      .set("Authorization", "Bearer token")
+      .expect(200);
+
+    expect(response.body.data.id).toBe(postId);
+    expect(posts.restoreRevision).toHaveBeenCalledWith(postId, revisionId, user.id);
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "blog-posts.revisions.restore",
+        actorId: user.id,
+        entityId: postId,
       }),
     );
   });

@@ -67,7 +67,18 @@ export type PostDetail = PostSummary & {
   contentJson: Record<string, unknown> | null;
   contentText: string | null;
   contentVersion: number;
+  relatedPosts: PostSummary[];
   seo: PostSeoMeta | null;
+};
+
+export type PostRevision = {
+  createdAt: string;
+  createdBy: string | null;
+  id: string;
+  metadata: Record<string, unknown>;
+  revisionNumber: number;
+  snapshot: PostDetail;
+  title: string | null;
 };
 
 export type PostSeoInput = {
@@ -92,6 +103,7 @@ export type CreatePostInput = {
   excerpt?: string | null | undefined;
   featuredImageId?: string | null | undefined;
   publishedAt?: string | null | undefined;
+  relatedPostIds?: string[] | undefined;
   seo?: PostSeoInput | undefined;
   slug?: string | undefined;
   status?: Exclude<PostStatus, "deleted"> | undefined;
@@ -107,11 +119,18 @@ export type UpdatePostInput = {
   excerpt?: string | null | undefined;
   featuredImageId?: string | null | undefined;
   publishedAt?: string | null | undefined;
+  relatedPostIds?: string[] | undefined;
   seo?: PostSeoInput | undefined;
   slug?: string | undefined;
   status?: Exclude<PostStatus, "deleted"> | undefined;
   tagIds?: string[] | undefined;
   title?: string | undefined;
+  updatedBy?: string | null | undefined;
+};
+
+export type UpdatePostStatusInput = {
+  publishedAt?: string | null | undefined;
+  status: Exclude<PostStatus, "deleted">;
   updatedBy?: string | null | undefined;
 };
 

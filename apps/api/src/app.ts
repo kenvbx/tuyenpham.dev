@@ -5,6 +5,7 @@ import { createAdminRouter } from "./admin/admin.routes.js";
 import { createAuthRouter } from "./auth/auth.routes.js";
 import { errorHandler, notFoundHandler } from "./http/error-handler.js";
 import { requestLogger } from "./http/request-logger.js";
+import { createPublicRouter } from "./public/public.routes.js";
 
 export function createApp(): Express {
   const app = express();
@@ -25,6 +26,7 @@ export function createApp(): Express {
 
   app.use("/auth", createAuthRouter());
   app.use("/admin", createAdminRouter());
+  app.use("/public", createPublicRouter());
 
   app.use(notFoundHandler);
   app.use(errorHandler);

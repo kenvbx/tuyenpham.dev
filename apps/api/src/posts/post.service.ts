@@ -10,12 +10,15 @@ import type {
   PostAuthor,
   PostCategory,
   PostDetail,
+  PostRevision,
   PostSeoInput,
   PostSeoMeta,
   PostSlug,
+  PostStatus,
   PostSummary,
   PostTag,
   UpdatePostInput,
+  UpdatePostStatusInput,
 } from "./post.types.js";
 
 type SupabaseQueryResult<TData> = {
@@ -125,6 +128,20 @@ type RelationIdRow = {
   post_id: string;
 };
 
+type RelatedPostRow = {
+  related_post_id: string;
+};
+
+type RevisionRow = {
+  created_at: string;
+  created_by: string | null;
+  id: string;
+  metadata: Record<string, unknown>;
+  revision_number: number;
+  snapshot: PostDetail;
+  title: string | null;
+};
+
 const POST_SELECT =
   "id,title,excerpt,content_json,content_html,content_text,content_version,featured_image_id,author_id,status,published_at,views_count,deleted_at,created_at,updated_at";
 const SLUG_SELECT = "id,key,prefix,locale,reference_id";
@@ -134,6 +151,7 @@ const AUTHOR_SELECT = "id,email,display_name";
 const POST_CATEGORY_SELECT =
   "post_id,category_id,categories (id,name,description,parent_id,sort_order,status)";
 const POST_TAG_SELECT = "post_id,tag_id,tags (id,name,slug,description,status)";
+const REVISION_SELECT = "id,revision_number,title,snapshot,metadata,created_by,created_at";
 
 export class PostService {
   private readonly client: PostServiceClient;
@@ -211,11 +229,12 @@ export class PostService {
 
   async getPost(postId: string): Promise<PostDetail> {
     const post = await this.loadPostById(postId);
-    const [slug, seo, author, relations] = await Promise.all([
+    const [slug, seo, author, relations, relatedPosts] = await Promise.all([
       this.loadActiveSlug(post.id),
       this.loadSeo(post.id),
       post.author_id ? this.loadAuthor(post.author_id) : Promise.resolve(null),
       this.loadRelations([post.id]),
+      this.loadRelatedPosts(post.id),
     ]);
 
     return toPostDetail(
@@ -225,7 +244,32 @@ export class PostService {
       author,
       relations.categories.get(post.id) ?? [],
       relations.tags.get(post.id) ?? [],
+      relatedPosts,
     );
+  }
+
+  async getPublishedPostBySlug(slugKey: string): Promise<PostDetail> {
+    const slug = await this.loadSlugByKey(slugKey);
+
+    if (!slug) {
+      throw new HttpError("Post was not found.", {
+        code: "post_not_found",
+        statusCode: 404,
+      });
+    }
+
+    const post = await this.loadPostById(slug.reference_id);
+
+    if (!isPubliclyVisible(post)) {
+      throw new HttpError("Post was not found.", {
+        code: "post_not_found",
+        statusCode: 404,
+      });
+    }
+
+    await this.incrementViews(post.id);
+
+    return this.getPost(post.id);
   }
 
   async createPost(input: CreatePostInput): Promise<PostDetail> {
@@ -273,6 +317,7 @@ export class PostService {
       }),
       this.replaceCategories(post.id, input.categoryIds ?? []),
       this.replaceTags(post.id, input.tagIds ?? []),
+      this.replaceRelatedPosts(post.id, input.relatedPostIds ?? []),
       input.seo ? this.upsertSeo(post.id, input.seo, input.authorId ?? null) : Promise.resolve(),
     ]);
 
@@ -280,17 +325,36 @@ export class PostService {
   }
 
   async updatePost(postId: string, input: UpdatePostInput): Promise<PostDetail> {
-    await this.loadPostById(postId);
+    const existingPost = await this.loadPostById(postId);
+    const existingDetail = await this.getPost(postId);
+    const statusPatch =
+      input.status !== undefined || input.publishedAt !== undefined
+        ? resolveStatusPatch({
+            currentPublishedAt: existingPost.published_at,
+            publishedAt: input.publishedAt,
+            status: input.status ?? (existingPost.status as PostStatus),
+          })
+        : {};
     const patch = {
       ...(input.contentHtml !== undefined ? { content_html: input.contentHtml } : {}),
       ...(input.contentJson !== undefined ? { content_json: input.contentJson } : {}),
       ...(input.contentText !== undefined ? { content_text: input.contentText } : {}),
       ...(input.excerpt !== undefined ? { excerpt: input.excerpt } : {}),
       ...(input.featuredImageId !== undefined ? { featured_image_id: input.featuredImageId } : {}),
-      ...(input.publishedAt !== undefined ? { published_at: input.publishedAt } : {}),
-      ...(input.status !== undefined ? { status: input.status } : {}),
+      ...statusPatch,
       ...(input.title !== undefined ? { title: input.title } : {}),
     };
+    const hasChanges =
+      Object.keys(patch).length > 0 ||
+      input.categoryIds !== undefined ||
+      input.relatedPostIds !== undefined ||
+      input.seo !== undefined ||
+      input.slug !== undefined ||
+      input.tagIds !== undefined;
+
+    if (hasChanges) {
+      await this.createRevision(existingDetail, input.updatedBy ?? null, "blog-posts.update");
+    }
 
     if (Object.keys(patch).length > 0) {
       const result = await this.from("posts").update(patch).eq("id", postId);
@@ -316,11 +380,89 @@ export class PostService {
       await this.replaceTags(postId, input.tagIds);
     }
 
+    if (input.relatedPostIds !== undefined) {
+      await this.replaceRelatedPosts(postId, input.relatedPostIds);
+    }
+
     if (input.seo !== undefined) {
       await this.upsertSeo(postId, input.seo, input.updatedBy ?? null);
     }
 
     return this.getPost(postId);
+  }
+
+  async updatePostStatus(postId: string, input: UpdatePostStatusInput): Promise<PostDetail> {
+    const existingPost = await this.loadPostById(postId);
+    const existingDetail = await this.getPost(postId);
+    await this.createRevision(existingDetail, input.updatedBy ?? null, "blog-posts.status.update");
+    const result = await this.from("posts")
+      .update(
+        resolveStatusPatch({
+          currentPublishedAt: existingPost.published_at,
+          publishedAt: input.publishedAt,
+          status: input.status,
+        }),
+      )
+      .eq("id", postId);
+
+    if (result.error) {
+      throw new HttpError("Unable to update post status.", {
+        code: "post_status_update_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    return this.getPost(postId);
+  }
+
+  async listRevisions(postId: string): Promise<PostRevision[]> {
+    await this.loadPostById(postId, { includeDeleted: true });
+
+    const result = (await this.from("revisions")
+      .select(REVISION_SELECT)
+      .eq("entity_type", "post")
+      .eq("entity_id", postId)
+      .order("revision_number", { ascending: false })) as SupabaseQueryResult<RevisionRow[]>;
+
+    if (result.error) {
+      throw new HttpError("Unable to list post revisions.", {
+        code: "post_revisions_list_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    return (result.data ?? []).map(toRevision);
+  }
+
+  async restoreRevision(
+    postId: string,
+    revisionId: string,
+    restoredBy: string | null,
+  ): Promise<PostDetail> {
+    const revision = await this.loadRevision(postId, revisionId);
+    const snapshot = revision.snapshot;
+
+    return this.updatePost(postId, {
+      categoryIds: snapshot.categories.map((category) => category.id),
+      contentHtml: snapshot.contentHtml,
+      contentJson: snapshot.contentJson,
+      contentText: snapshot.contentText,
+      excerpt: snapshot.excerpt,
+      featuredImageId: snapshot.featuredImageId,
+      publishedAt: snapshot.publishedAt,
+      relatedPostIds: snapshot.relatedPosts.map((post) => post.id),
+      seo: toSeoInput(snapshot.seo),
+      slug: snapshot.slug?.key,
+      status:
+        snapshot.status === "deleted"
+          ? "draft"
+          : (snapshot.status as Exclude<PostStatus, "deleted">),
+      tagIds: snapshot.tags.map((tag) => tag.id),
+      title: snapshot.title,
+      updatedBy: restoredBy,
+    });
   }
 
   async deletePost(postId: string): Promise<PostDetail> {
@@ -352,7 +494,7 @@ export class PostService {
     }
 
     const post = await this.loadPostById(postId, { includeDeleted: true });
-    return toPostDetail(post, null, await this.loadSeo(postId), null, [], []);
+    return toPostDetail(post, null, await this.loadSeo(postId), null, [], [], []);
   }
 
   private from(table: string): QueryBuilder {
@@ -456,6 +598,25 @@ export class PostService {
     }
 
     return result.data ? toSlug(result.data as SlugRow) : null;
+  }
+
+  private async loadSlugByKey(slugKey: string): Promise<SlugRow | null> {
+    const result = await this.from("slugs")
+      .select(SLUG_SELECT)
+      .eq("reference_type", "blog-post")
+      .eq("key", slugKey)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (result.error) {
+      throw new HttpError("Unable to load post slug.", {
+        code: "post_slug_lookup_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    return result.data ? (result.data as SlugRow) : null;
   }
 
   private async loadActiveSlugs(postIds: string[]): Promise<Map<string, PostSlug>> {
@@ -568,6 +729,61 @@ export class PostService {
     }
 
     return map;
+  }
+
+  private async loadPostSummaries(postIds: string[]): Promise<PostSummary[]> {
+    if (postIds.length === 0) {
+      return [];
+    }
+
+    const result = (await this.from("posts")
+      .select(POST_SELECT)
+      .in("id", postIds)) as SupabaseQueryResult<PostRow[]>;
+
+    if (result.error) {
+      throw new HttpError("Unable to load related posts.", {
+        code: "related_posts_lookup_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    const rowsById = new Map((result.data ?? []).map((row) => [row.id, row]));
+    const relations = await this.loadRelations(postIds);
+
+    return postIds.flatMap((postId) => {
+      const row = rowsById.get(postId);
+
+      if (!row || row.status === "deleted") {
+        return [];
+      }
+
+      return [
+        toPostSummary(
+          row,
+          relations.slugs.get(row.id) ?? null,
+          relations.categories.get(row.id) ?? [],
+          relations.tags.get(row.id) ?? [],
+        ),
+      ];
+    });
+  }
+
+  private async loadRelatedPosts(postId: string): Promise<PostSummary[]> {
+    const result = (await this.from("post_related_posts")
+      .select("related_post_id")
+      .eq("post_id", postId)
+      .order("sort_order", { ascending: true })) as SupabaseQueryResult<RelatedPostRow[]>;
+
+    if (result.error) {
+      throw new HttpError("Unable to load related posts.", {
+        code: "related_posts_lookup_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    return this.loadPostSummaries((result.data ?? []).map((row) => row.related_post_id));
   }
 
   private async createSlug(input: {
@@ -689,6 +905,46 @@ export class PostService {
     }
   }
 
+  private async replaceRelatedPosts(postId: string, relatedPostIds: string[]): Promise<void> {
+    if (relatedPostIds.includes(postId)) {
+      throw new HttpError("A post cannot be related to itself.", {
+        code: "related_post_self_invalid",
+        statusCode: 422,
+      });
+    }
+
+    const uniqueRelatedPostIds = [...new Set(relatedPostIds)];
+    const deleteResult = await this.from("post_related_posts").delete().eq("post_id", postId);
+
+    if (deleteResult.error) {
+      throw new HttpError("Unable to clear related posts.", {
+        code: "related_posts_clear_failed",
+        details: { cause: deleteResult.error.message },
+        statusCode: 500,
+      });
+    }
+
+    if (uniqueRelatedPostIds.length === 0) {
+      return;
+    }
+
+    const result = await this.from("post_related_posts").insert(
+      uniqueRelatedPostIds.map((relatedPostId, index) => ({
+        post_id: postId,
+        related_post_id: relatedPostId,
+        sort_order: index,
+      })),
+    );
+
+    if (result.error) {
+      throw new HttpError("Unable to save related posts.", {
+        code: "related_posts_save_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+  }
+
   private async upsertSeo(postId: string, input: PostSeoInput, userId: string | null) {
     const result = await this.from("seo_meta").upsert(
       {
@@ -716,6 +972,94 @@ export class PostService {
         statusCode: 500,
       });
     }
+  }
+
+  private async incrementViews(postId: string): Promise<void> {
+    const post = await this.loadPostById(postId);
+    const result = await this.from("posts")
+      .update({ views_count: Number(post.views_count) + 1 })
+      .eq("id", postId);
+
+    if (result.error) {
+      throw new HttpError("Unable to increment post views.", {
+        code: "post_views_increment_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+  }
+
+  private async loadRevision(postId: string, revisionId: string): Promise<PostRevision> {
+    const result = await this.from("revisions")
+      .select(REVISION_SELECT)
+      .eq("entity_type", "post")
+      .eq("entity_id", postId)
+      .eq("id", revisionId)
+      .maybeSingle();
+
+    if (result.error) {
+      throw new HttpError("Unable to load post revision.", {
+        code: "post_revision_lookup_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    if (!result.data) {
+      throw new HttpError("Post revision was not found.", {
+        code: "post_revision_not_found",
+        statusCode: 404,
+      });
+    }
+
+    return toRevision(result.data as RevisionRow);
+  }
+
+  private async createRevision(
+    post: PostDetail,
+    createdBy: string | null,
+    reason: string,
+  ): Promise<void> {
+    const revisionNumber = await this.nextRevisionNumber(post.id);
+    const result = await this.from("revisions").insert({
+      created_by: createdBy,
+      entity_id: post.id,
+      entity_type: "post",
+      metadata: {
+        reason,
+        status: post.status,
+      },
+      revision_number: revisionNumber,
+      snapshot: post,
+      title: post.title,
+    });
+
+    if (result.error) {
+      throw new HttpError("Unable to create post revision.", {
+        code: "post_revision_create_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+  }
+
+  private async nextRevisionNumber(postId: string): Promise<number> {
+    const result = (await this.from("revisions")
+      .select("revision_number")
+      .eq("entity_type", "post")
+      .eq("entity_id", postId)
+      .order("revision_number", { ascending: false })
+      .range(0, 0)) as SupabaseQueryResult<RevisionRow[]>;
+
+    if (result.error) {
+      throw new HttpError("Unable to inspect post revisions.", {
+        code: "post_revision_lookup_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    return (result.data?.[0]?.revision_number ?? 0) + 1;
   }
 }
 
@@ -752,6 +1096,7 @@ function toPostDetail(
   author: PostAuthor | null,
   categories: PostCategory[],
   tags: PostTag[],
+  relatedPosts: PostSummary[],
 ): PostDetail {
   return {
     ...toPostSummary(row, slug, categories, tags),
@@ -760,6 +1105,7 @@ function toPostDetail(
     contentJson: row.content_json,
     contentText: row.content_text,
     contentVersion: row.content_version,
+    relatedPosts,
     seo,
   };
 }
@@ -816,6 +1162,61 @@ function toTag(row: TagRow): PostTag {
     slug: row.slug,
     status: row.status,
   };
+}
+
+function toRevision(row: RevisionRow): PostRevision {
+  return {
+    createdAt: row.created_at,
+    createdBy: row.created_by,
+    id: row.id,
+    metadata: row.metadata,
+    revisionNumber: row.revision_number,
+    snapshot: row.snapshot,
+    title: row.title,
+  };
+}
+
+function toSeoInput(seo: PostSeoMeta | null): PostSeoInput {
+  return {
+    canonicalUrl: seo?.canonicalUrl ?? null,
+    metaDescription: seo?.metaDescription ?? null,
+    metaTitle: seo?.metaTitle ?? null,
+    nofollow: seo?.nofollow ?? false,
+    noindex: seo?.noindex ?? false,
+    ogDescription: seo?.ogDescription ?? null,
+    ogImageId: seo?.ogImageId ?? null,
+    ogImageUrl: seo?.ogImageUrl ?? null,
+    ogTitle: seo?.ogTitle ?? null,
+    structuredData: seo?.structuredData ?? {},
+  };
+}
+
+function resolveStatusPatch(input: {
+  currentPublishedAt?: string | null | undefined;
+  publishedAt?: string | null | undefined;
+  status: PostStatus;
+}) {
+  if (input.status === "deleted") {
+    return { status: input.status };
+  }
+
+  const nextPublishedAt =
+    input.status === "published" && input.publishedAt === undefined && !input.currentPublishedAt
+      ? new Date().toISOString()
+      : (input.publishedAt ?? input.currentPublishedAt ?? null);
+
+  return {
+    published_at: nextPublishedAt,
+    status: input.status,
+  };
+}
+
+function isPubliclyVisible(row: PostRow): boolean {
+  if (row.status !== "published" || row.deleted_at) {
+    return false;
+  }
+
+  return !row.published_at || new Date(row.published_at).getTime() <= Date.now();
 }
 
 function escapeSearch(value: string): string {

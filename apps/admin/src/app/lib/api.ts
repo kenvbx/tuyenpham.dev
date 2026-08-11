@@ -348,7 +348,18 @@ export type AdminPostDetail = AdminPostSummary & {
   contentJson: Record<string, unknown> | null;
   contentText: string | null;
   contentVersion: number;
+  relatedPosts: AdminPostSummary[];
   seo: AdminPostSeoMeta | null;
+};
+
+export type AdminPostRevision = {
+  createdAt: string;
+  createdBy: string | null;
+  id: string;
+  metadata: Record<string, unknown>;
+  revisionNumber: number;
+  snapshot: AdminPostDetail;
+  title: string | null;
 };
 
 export type PostListFilters = {
@@ -367,11 +378,17 @@ export type PostFormInput = {
   excerpt?: string | null | undefined;
   featuredImageId?: string | null | undefined;
   publishedAt?: string | null | undefined;
+  relatedPostIds?: string[] | undefined;
   seo?: PageFormInput["seo"];
   slug?: string | undefined;
   status?: AdminPostStatus | undefined;
   tagIds?: string[] | undefined;
   title: string;
+};
+
+export type PostStatusInput = {
+  publishedAt?: string | null | undefined;
+  status: AdminPostStatus;
 };
 
 export type CategoryFormInput = {
@@ -735,6 +752,40 @@ export async function updatePost(token: string, postId: string, input: PostFormI
   return response.data;
 }
 
+export async function updatePostStatus(token: string, postId: string, input: PostStatusInput) {
+  const response = await apiRequest<ApiSuccessResponse<AdminPostDetail>>(
+    `/admin/posts/${postId}/status`,
+    {
+      body: cleanPostPayload(input),
+      method: "POST",
+      token,
+    },
+  );
+
+  return response.data;
+}
+
+export async function listPostRevisions(token: string, postId: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminPostRevision[]>>(
+    `/admin/posts/${postId}/revisions`,
+    { token },
+  );
+
+  return response.data;
+}
+
+export async function restorePostRevision(token: string, postId: string, revisionId: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminPostDetail>>(
+    `/admin/posts/${postId}/revisions/${revisionId}/restore`,
+    {
+      method: "POST",
+      token,
+    },
+  );
+
+  return response.data;
+}
+
 export async function deletePost(token: string, postId: string) {
   const response = await apiRequest<ApiSuccessResponse<AdminPostDetail>>(`/admin/posts/${postId}`, {
     method: "DELETE",
@@ -983,10 +1034,10 @@ function cleanPagePayload(input: PageFormInput | PageStatusInput) {
   );
 }
 
-function cleanPostPayload(input: PostFormInput) {
+function cleanPostPayload(input: PostFormInput | PostStatusInput) {
   return Object.fromEntries(
     Object.entries(input)
-      .filter(([, value]) => value !== "" && value !== undefined)
+      .filter(([key, value]) => key !== "id" && value !== "" && value !== undefined)
       .map(([key, value]) => {
         if (key !== "seo" || typeof value !== "object" || value === null) {
           return [key, value];
@@ -1002,13 +1053,17 @@ function cleanPostPayload(input: PostFormInput) {
 
 function cleanCategoryPayload(input: CategoryFormInput) {
   return Object.fromEntries(
-    Object.entries(input).filter(([, value]) => value !== "" && value !== undefined),
+    Object.entries(input).filter(
+      ([key, value]) => key !== "id" && value !== "" && value !== undefined,
+    ),
   );
 }
 
 function cleanTagPayload(input: TagFormInput) {
   return Object.fromEntries(
-    Object.entries(input).filter(([, value]) => value !== "" && value !== undefined),
+    Object.entries(input).filter(
+      ([key, value]) => key !== "id" && value !== "" && value !== undefined,
+    ),
   );
 }
 

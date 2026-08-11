@@ -1366,6 +1366,100 @@ select {
   height: 16px;
 }
 
+.taxonomy-management-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.taxonomy-manager {
+  overflow: hidden;
+}
+
+.taxonomy-manager > section,
+.taxonomy-form {
+  display: grid;
+  gap: 14px;
+}
+
+.taxonomy-manager-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 18px;
+}
+
+.taxonomy-manager-header p,
+.taxonomy-manager-header h3 {
+  margin: 0;
+}
+
+.taxonomy-manager-header p {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.taxonomy-form {
+  padding: 18px;
+}
+
+.taxonomy-form label {
+  display: grid;
+  gap: 7px;
+  color: #334155;
+  font-size: 14px;
+}
+
+.taxonomy-form textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+
+.taxonomy-list {
+  display: grid;
+  gap: 8px;
+  padding: 0 18px 18px;
+}
+
+.taxonomy-list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.taxonomy-list article.is-dragging {
+  border-color: #1f6feb;
+  background: #eff6ff;
+}
+
+.taxonomy-list article > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.taxonomy-list strong,
+.taxonomy-list span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taxonomy-list span {
+  color: #64748b;
+  font-size: 13px;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -38,6 +38,7 @@ const postBodySchema = z.object({
   excerpt: z.string().trim().max(1000).nullable().optional(),
   featuredImageId: z.string().uuid().nullable().optional(),
   publishedAt: z.iso.datetime().nullable().optional(),
+  relatedPostIds: z.array(z.string().uuid()).default([]),
   seo: seoBodySchema.optional(),
   slug: z
     .string()
@@ -50,8 +51,15 @@ const postBodySchema = z.object({
   title: z.string().trim().min(1).max(255),
 });
 const updatePostBodySchema = postBodySchema.partial();
+const updatePostStatusBodySchema = z.object({
+  publishedAt: z.iso.datetime().nullable().optional(),
+  status: writablePostStatusSchema,
+});
 const postParamsSchema = z.object({
   postId: z.string().uuid(),
+});
+const revisionParamsSchema = postParamsSchema.extend({
+  revisionId: z.string().uuid(),
 });
 const listPostsQuerySchema = listQuerySchema.extend({
   categoryId: z.string().uuid().optional(),
@@ -109,6 +117,54 @@ export function createPostRouter(options: PostRouterOptions = {}): ExpressRouter
     },
   );
 
+  router.get(
+    "/:postId/revisions",
+    requireAuth(auth),
+    requirePermission(Permission.BLOG_POSTS_INDEX, permissions),
+    async (request, response, next) => {
+      try {
+        const params = postParamsSchema.parse(request.params);
+        const revisions = await posts.listRevisions(params.postId);
+
+        response.json(createApiSuccessResponse(revisions));
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.post(
+    "/:postId/revisions/:revisionId/restore",
+    requireAuth(auth),
+    requirePermission(Permission.BLOG_POSTS_EDIT, permissions),
+    async (request, response, next) => {
+      try {
+        const params = revisionParamsSchema.parse(request.params);
+        const post = await posts.restoreRevision(
+          params.postId,
+          params.revisionId,
+          request.auth?.user.id ?? null,
+        );
+
+        await audit.log({
+          action: "blog-posts.revisions.restore",
+          actorId: request.auth?.user.id ?? null,
+          afterData: { revisionId: params.revisionId },
+          entityId: post.id,
+          entityType: "blog-post",
+          ipAddress: request.ip,
+          metadata: { revisionId: params.revisionId, title: post.title },
+          requestId: request.header("x-request-id") ?? null,
+          userAgent: request.header("user-agent") ?? null,
+        });
+
+        response.json(createApiSuccessResponse(post));
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
   router.post(
     "/",
     requireAuth(auth),
@@ -134,6 +190,38 @@ export function createPostRouter(options: PostRouterOptions = {}): ExpressRouter
         });
 
         response.status(201).json(createApiSuccessResponse(post));
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.post(
+    "/:postId/status",
+    requireAuth(auth),
+    requirePermission(Permission.BLOG_POSTS_PUBLISH, permissions),
+    async (request, response, next) => {
+      try {
+        const params = postParamsSchema.parse(request.params);
+        const body = updatePostStatusBodySchema.parse(request.body);
+        const post = await posts.updatePostStatus(params.postId, {
+          ...body,
+          updatedBy: request.auth?.user.id ?? null,
+        });
+
+        await audit.log({
+          action: "blog-posts.status.update",
+          actorId: request.auth?.user.id ?? null,
+          afterData: body,
+          entityId: post.id,
+          entityType: "blog-post",
+          ipAddress: request.ip,
+          metadata: { publishedAt: post.publishedAt, status: post.status, title: post.title },
+          requestId: request.header("x-request-id") ?? null,
+          userAgent: request.header("user-agent") ?? null,
+        });
+
+        response.json(createApiSuccessResponse(post));
       } catch (error) {
         next(error);
       }
