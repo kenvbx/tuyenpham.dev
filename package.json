@@ -17,6 +17,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "perf:budget": "pnpm --filter @cms/tooling perf:budget",
+    "qa:checklist": "pnpm --filter @cms/tooling qa:checklist",
+    "admin:seed-production": "pnpm --filter @cms/tooling admin:seed-production",
     "db:migrate": "pnpm --filter @cms/tooling db:migrate",
     "db:seed": "pnpm --filter @cms/tooling db:seed"
   },

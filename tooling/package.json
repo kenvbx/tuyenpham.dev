@@ -11,9 +11,12 @@
     "backup:drill": "node scripts/backup-drill.mjs",
     "backup:drill:dry-run": "node scripts/backup-drill.mjs --dry-run",
     "perf:budget": "node scripts/performance-budget.mjs",
+    "qa:checklist": "node scripts/qa-checklist.mjs",
+    "admin:seed-production": "node scripts/seed-production-admin.mjs",
+    "admin:seed-production:dry-run": "PROD_ADMIN_EMAIL=admin@example.com node scripts/seed-production-admin.mjs --dry-run",
     "lint": "eslint . --ext .js,.mjs,.ts",
     "typecheck": "node -e \"console.log('tooling typecheck placeholder')\"",
-    "test": "node scripts/migrate.mjs --dry-run && node scripts/seed.mjs --dry-run && node scripts/backup-drill.mjs --dry-run",
+    "test": "node scripts/migrate.mjs --dry-run && node scripts/seed.mjs --dry-run && node scripts/backup-drill.mjs --dry-run && node scripts/qa-checklist.mjs && pnpm admin:seed-production:dry-run",
     "format": "prettier --write ."
   },
   "dependencies": {
