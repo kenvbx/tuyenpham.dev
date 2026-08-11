@@ -10,6 +10,7 @@ import { createMenuRouter, type MenuRouterOptions } from "../menus/menu.routes.j
 import { createPageRouter, type PageRouterOptions } from "../pages/page.routes.js";
 import { createPostRouter, type PostRouterOptions } from "../posts/post.routes.js";
 import { createRoleRouter, type RoleRouterOptions } from "../roles/role.routes.js";
+import { createSettingRouter, type SettingRouterOptions } from "../settings/setting.routes.js";
 import { createTagRouter, type TagRouterOptions } from "../tags/tag.routes.js";
 import { createUserRouter, type UserRouterOptions } from "../users/user.routes.js";
 
@@ -21,6 +22,7 @@ export type AdminRouterOptions = {
   pages?: PageRouterOptions;
   posts?: PostRouterOptions;
   roles?: RoleRouterOptions;
+  settings?: SettingRouterOptions;
   tags?: TagRouterOptions;
   users?: UserRouterOptions;
 };
@@ -35,6 +37,7 @@ export function createAdminRouter(options: AdminRouterOptions = {}): ExpressRout
   router.use("/pages", createPageRouter(options.pages));
   router.use("/posts", createPostRouter(options.posts));
   router.use("/roles", createRoleRouter(options.roles));
+  router.use("/settings", createSettingRouter(options.settings));
   router.use("/tags", createTagRouter(options.tags));
   router.use("/users", createUserRouter(options.users));
 

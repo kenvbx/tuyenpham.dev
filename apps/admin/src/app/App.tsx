@@ -14,6 +14,7 @@ import { MenusPage } from "./pages/MenusPage";
 import { PagesPage } from "./pages/PagesPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { RolesPage } from "./pages/RolesPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { UsersPage } from "./pages/UsersPage";
 
 export function App() {
@@ -63,6 +64,17 @@ export function App() {
                 element={
                   <PermissionGate fallback={<DashboardPage />} permission={Permission.ROLES_INDEX}>
                     <RolesPage />
+                  </PermissionGate>
+                }
+              />
+              <Route
+                path="settings"
+                element={
+                  <PermissionGate
+                    fallback={<DashboardPage />}
+                    permission={Permission.SETTINGS_INDEX}
+                  >
+                    <SettingsPage />
                   </PermissionGate>
                 }
               />

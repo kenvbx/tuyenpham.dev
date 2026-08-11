@@ -490,6 +490,15 @@ export type LinkableResource = {
   updatedAt: string;
 };
 
+export type SettingValue = boolean | null | number | string | string[] | Record<string, unknown>;
+
+export type SettingsSnapshot = Record<string, Record<string, SettingValue>>;
+
+export type SettingsUpdateInput = {
+  namespace: string;
+  values: Record<string, SettingValue>;
+};
+
 type RequestOptions = {
   body?: unknown;
   method?: "DELETE" | "GET" | "PATCH" | "POST";
@@ -561,6 +570,56 @@ export async function getDashboardOverview(token: string) {
   const response = await apiRequest<ApiSuccessResponse<DashboardOverview>>(
     "/admin/dashboard/overview",
     { token },
+  );
+
+  return response.data;
+}
+
+export async function getSettings(token: string, namespace?: string | undefined) {
+  const params = new URLSearchParams();
+
+  if (namespace) {
+    params.set("namespace", namespace);
+  }
+
+  const response = await apiRequest<ApiSuccessResponse<SettingsSnapshot>>(
+    `/admin/settings${params.toString() ? `?${params.toString()}` : ""}`,
+    { token },
+  );
+
+  return response.data;
+}
+
+export async function updateSettings(token: string, input: SettingsUpdateInput) {
+  const response = await apiRequest<ApiSuccessResponse<SettingsSnapshot>>("/admin/settings", {
+    body: input,
+    method: "PATCH",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function testEmailSettings(token: string, recipient: string) {
+  const response = await apiRequest<ApiSuccessResponse<{ delivered: boolean; recipient: string }>>(
+    "/admin/settings/email/test",
+    {
+      body: { recipient },
+      method: "POST",
+      token,
+    },
+  );
+
+  return response.data;
+}
+
+export async function clearSettingsCache(token: string) {
+  const response = await apiRequest<ApiSuccessResponse<{ cleared: boolean }>>(
+    "/admin/settings/cache/clear",
+    {
+      method: "POST",
+      token,
+    },
   );
 
   return response.data;

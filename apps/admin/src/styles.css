@@ -542,6 +542,7 @@ select {
 .roles-page,
 .media-page,
 .pages-page,
+.settings-page,
 .users-page {
   display: grid;
   gap: 18px;
@@ -629,11 +630,16 @@ select {
 .roles-layout,
 .media-layout,
 .pages-layout,
+.settings-layout,
 .users-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
   gap: 18px;
   align-items: start;
+}
+
+.settings-layout {
+  grid-template-columns: 220px minmax(0, 1fr);
 }
 
 .media-layout {
@@ -642,10 +648,100 @@ select {
 
 .media-sidebar,
 .table-panel,
-.form-panel {
+.form-panel,
+.settings-tabs,
+.settings-panel {
   border: 1px solid #d9e0ea;
   border-radius: 8px;
   background: #ffffff;
+}
+
+.settings-tabs {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+}
+
+.settings-tabs button {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.settings-tabs button:hover,
+.settings-tabs button.is-active {
+  background: #eaf1ff;
+  color: #1f6feb;
+}
+
+.settings-panel {
+  overflow: hidden;
+}
+
+.settings-panel > header {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 18px;
+}
+
+.settings-panel > header p,
+.settings-panel > header h3 {
+  margin: 0;
+}
+
+.settings-panel > header p {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.settings-panel > header h3 {
+  margin-top: 4px;
+  letter-spacing: 0;
+}
+
+.settings-form {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.settings-field-wide,
+.settings-inline-action {
+  grid-column: 1 / -1;
+}
+
+.settings-inline-action {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.settings-inline-action > span {
+  display: grid;
+  gap: 4px;
+  color: #334155;
+}
+
+.settings-inline-action small {
+  color: #64748b;
 }
 
 .media-sidebar {
@@ -1890,6 +1986,7 @@ select {
   .profile-layout,
   .roles-layout,
   .media-layout,
+  .settings-layout,
   .users-layout {
     grid-template-columns: 1fr;
   }
@@ -1922,8 +2019,18 @@ select {
   .profile-page,
   .roles-page,
   .media-page,
+  .settings-page,
   .users-page {
     padding: 18px;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-inline-action {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .toolbar,
