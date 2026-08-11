@@ -1,19 +1,25 @@
 import { createPagination } from "@cms/shared";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { appEnv } from "../config/env.js";
 import { HttpError } from "../http/http-error.js";
 import { supabase } from "../supabase/client.js";
 import type {
   PublicAuthor,
   PublicCategory,
   PublicCategoryDetail,
+  PublicMenu,
+  PublicMenuNode,
   PublicPageDetail,
   PublicPostDetail,
   PublicPostListParams,
   PublicPostSummary,
   PublicSeoMeta,
+  PublicSettings,
+  PublicSitemapEntry,
   PublicSlug,
   PublicTag,
+  PublicTagDetail,
 } from "./public-content.types.js";
 
 type SupabaseQueryResult<TData> = {
@@ -27,6 +33,7 @@ type QueryBuilder = PromiseLike<SupabaseQueryResult<unknown[]>> & {
   in: (column: string, values: unknown[]) => QueryBuilder;
   is: (column: string, value: null) => QueryBuilder;
   maybeSingle: () => Promise<SupabaseQueryResult<unknown>>;
+  neq: (column: string, value: unknown) => QueryBuilder;
   or: (filters: string) => QueryBuilder;
   order: (column: string, options?: { ascending?: boolean }) => QueryBuilder;
   range: (from: number, to: number) => QueryBuilder;
@@ -123,6 +130,39 @@ type RelatedPostRow = {
   related_post_id: string;
 };
 
+type MenuRow = {
+  id: string;
+  location: string;
+  name: string;
+  slug: string;
+  status: string;
+  updated_at: string;
+};
+
+type MenuNodeRow = {
+  css_class: string | null;
+  deleted_at: string | null;
+  icon: string | null;
+  id: string;
+  link_type: string;
+  menu_id: string;
+  parent_id: string | null;
+  rel: string | null;
+  resource_id: string | null;
+  resource_type: string | null;
+  sort_order: number;
+  status: string;
+  target: string;
+  title: string;
+  url: string | null;
+};
+
+type SettingRow = {
+  key: string;
+  namespace: string;
+  value: unknown;
+};
+
 export type PublicContentServiceOptions = {
   client?: PublicContentClient;
 };
@@ -138,6 +178,10 @@ const AUTHOR_SELECT = "id,display_name";
 const POST_CATEGORY_SELECT =
   "post_id,category_id,categories (id,name,description,parent_id,sort_order,status,deleted_at,updated_at)";
 const POST_TAG_SELECT = "post_id,tag_id,tags (id,name,slug,description,status,deleted_at)";
+const MENU_SELECT = "id,name,slug,location,status,updated_at";
+const MENU_NODE_SELECT =
+  "id,menu_id,parent_id,title,link_type,url,resource_type,resource_id,target,rel,icon,css_class,sort_order,status,deleted_at";
+const SETTING_SELECT = "namespace,key,value";
 
 export class PublicContentService {
   private readonly client: PublicContentClient;
@@ -288,12 +332,133 @@ export class PublicContentService {
     };
   }
 
+  async getTagBySlug(
+    slugKey: string,
+    params: Omit<PublicPostListParams, "tag" | "tagId">,
+  ): Promise<PublicTagDetail> {
+    const tag = await this.loadTagBySlug(slugKey);
+
+    if (!isPublicTagVisible(tag)) {
+      throw new HttpError("Tag was not found.", {
+        code: "tag_not_found",
+        statusCode: 404,
+      });
+    }
+
+    const posts = await this.listPosts({
+      ...params,
+      tagId: tag.id,
+    });
+
+    return {
+      pagination: posts.pagination,
+      posts: posts.data,
+      tag: toTag(tag),
+    };
+  }
+
+  async getMenuByLocation(location: string): Promise<PublicMenu> {
+    const result = await this.from("menus")
+      .select(MENU_SELECT)
+      .eq("location", location)
+      .eq("status", "active")
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (result.error) {
+      throw new HttpError("Unable to load public menu.", {
+        code: "public_menu_lookup_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    if (!result.data) {
+      throw new HttpError("Menu was not found.", {
+        code: "menu_not_found",
+        statusCode: 404,
+      });
+    }
+
+    const menu = result.data as MenuRow;
+    const nodes = await this.loadMenuNodes(menu.id);
+    const resolvedNodes = await this.resolveMenuNodeUrls(nodes);
+
+    return {
+      id: menu.id,
+      location: menu.location,
+      name: menu.name,
+      nodes: buildMenuTree(resolvedNodes),
+      slug: menu.slug,
+      updatedAt: menu.updated_at,
+    };
+  }
+
+  async getPublicSettings(namespace?: string | undefined): Promise<PublicSettings> {
+    let query = this.from("settings").select(SETTING_SELECT).eq("is_public", true);
+
+    if (namespace) {
+      query = query.eq("namespace", namespace);
+    }
+
+    const result = (await query.order("namespace", { ascending: true }).order("key", {
+      ascending: true,
+    })) as SupabaseQueryResult<SettingRow[]>;
+
+    if (result.error) {
+      throw new HttpError("Unable to load public settings.", {
+        code: "public_settings_lookup_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    return (result.data ?? []).reduce<PublicSettings>((settings, row) => {
+      settings[row.namespace] = {
+        ...(settings[row.namespace] ?? {}),
+        [row.key]: row.value,
+      };
+
+      return settings;
+    }, {});
+  }
+
+  async getSitemapEntries(): Promise<PublicSitemapEntry[]> {
+    const [pages, posts, categories] = await Promise.all([
+      this.loadSitemapContent("pages", PAGE_SELECT),
+      this.loadSitemapContent("posts", POST_SELECT),
+      this.loadSitemapCategories(),
+    ]);
+    const pageEntries = await this.toSitemapEntries(pages);
+    const postEntries = await this.toSitemapEntries(posts);
+    const categoryEntries = await this.toSitemapEntries(categories);
+
+    return [...pageEntries, ...postEntries, ...categoryEntries].sort((left, right) =>
+      left.url.localeCompare(right.url),
+    );
+  }
+
+  async getRobotsTxt(): Promise<string> {
+    const settings = await this.getPublicSettings("seo");
+    const configured = settings["seo"]?.["robots-txt"];
+
+    if (typeof configured === "string" && configured.trim()) {
+      return configured.trim();
+    }
+
+    return [
+      "User-agent: *",
+      "Allow: /",
+      `Sitemap: ${new URL("/sitemap.xml", appEnv.APP_URL)}`,
+    ].join("\n");
+  }
+
   private from(table: string): QueryBuilder {
     return this.client.from(table) as unknown as QueryBuilder;
   }
 
   private async loadSlug(
-    referenceType: "blog-post" | "category" | "page",
+    referenceType: "blog-post" | "category" | "page" | "tag",
     slugKey: string,
     locale: string,
   ): Promise<SlugRow> {
@@ -426,8 +591,27 @@ export class PublicContentService {
   }
 
   private async loadTagIdBySlug(slugKey: string): Promise<string | null> {
+    const row = await this.loadNullableTagBySlug(slugKey);
+
+    return row && isPublicTagVisible(row) ? row.id : null;
+  }
+
+  private async loadTagBySlug(slugKey: string): Promise<TagRow> {
+    const tag = await this.loadNullableTagBySlug(slugKey);
+
+    if (!tag) {
+      throw new HttpError("Tag was not found.", {
+        code: "tag_not_found",
+        statusCode: 404,
+      });
+    }
+
+    return tag;
+  }
+
+  private async loadNullableTagBySlug(slugKey: string): Promise<TagRow | null> {
     const result = await this.from("tags")
-      .select("id,slug,status,deleted_at")
+      .select("id,name,slug,description,status,deleted_at")
       .eq("slug", slugKey)
       .is("deleted_at", null)
       .maybeSingle();
@@ -440,9 +624,7 @@ export class PublicContentService {
       });
     }
 
-    const row = result.data as Pick<TagRow, "deleted_at" | "id" | "status"> | null;
-
-    return row && row.status === "published" && !row.deleted_at ? row.id : null;
+    return result.data ? (result.data as TagRow) : null;
   }
 
   private async loadPostIdsForRelation(
@@ -671,6 +853,136 @@ export class PublicContentService {
       });
     }
   }
+
+  private async loadMenuNodes(menuId: string): Promise<MenuNodeRow[]> {
+    const result = (await this.from("menu_nodes")
+      .select(MENU_NODE_SELECT)
+      .eq("menu_id", menuId)
+      .eq("status", "active")
+      .is("deleted_at", null)
+      .order("sort_order", { ascending: true })) as SupabaseQueryResult<MenuNodeRow[]>;
+
+    if (result.error) {
+      throw new HttpError("Unable to load public menu nodes.", {
+        code: "public_menu_nodes_lookup_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    return result.data ?? [];
+  }
+
+  private async resolveMenuNodeUrls(nodes: MenuNodeRow[]): Promise<PublicMenuNode[]> {
+    const resourceIds = nodes
+      .filter((node) => node.resource_type && node.resource_id)
+      .map((node) => node.resource_id as string);
+    const slugs = await this.loadSlugsByReferenceIds(resourceIds);
+
+    return nodes.map((node) => {
+      const slug = node.resource_id ? slugs.get(node.resource_id) : null;
+
+      return {
+        children: [],
+        cssClass: node.css_class,
+        icon: node.icon,
+        id: node.id,
+        linkType: node.link_type,
+        parentId: node.parent_id,
+        rel: node.rel,
+        resourceId: node.resource_id,
+        resourceType: node.resource_type,
+        target: node.target,
+        title: node.title,
+        url: node.url ?? (slug ? slugToPath(slug) : null),
+      };
+    });
+  }
+
+  private async loadSlugsByReferenceIds(referenceIds: string[]): Promise<Map<string, PublicSlug>> {
+    const map = new Map<string, PublicSlug>();
+
+    if (referenceIds.length === 0) {
+      return map;
+    }
+
+    const result = (await this.from("slugs")
+      .select(SLUG_SELECT)
+      .in("reference_id", [...new Set(referenceIds)])
+      .eq("is_active", true)) as SupabaseQueryResult<SlugRow[]>;
+
+    if (result.error) {
+      throw new HttpError("Unable to load public resource slugs.", {
+        code: "public_resource_slugs_lookup_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    for (const row of result.data ?? []) {
+      map.set(row.reference_id, toSlug(row));
+    }
+
+    return map;
+  }
+
+  private async loadSitemapContent(
+    table: "pages" | "posts",
+    columns: string,
+  ): Promise<Array<PageRow | PostRow>> {
+    const result = (await this.from(table)
+      .select(columns)
+      .is("deleted_at", null)
+      .or(publicVisibilityFilter())) as SupabaseQueryResult<Array<PageRow | PostRow>>;
+
+    if (result.error) {
+      throw new HttpError("Unable to load sitemap content.", {
+        code: "public_sitemap_content_lookup_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    return (result.data ?? []).filter(isPubliclyVisible);
+  }
+
+  private async loadSitemapCategories(): Promise<CategoryRow[]> {
+    const result = (await this.from("categories")
+      .select(CATEGORY_SELECT)
+      .eq("status", "published")
+      .is("deleted_at", null)) as SupabaseQueryResult<CategoryRow[]>;
+
+    if (result.error) {
+      throw new HttpError("Unable to load sitemap categories.", {
+        code: "public_sitemap_categories_lookup_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    return result.data ?? [];
+  }
+
+  private async toSitemapEntries(
+    rows: Array<CategoryRow | PageRow | PostRow>,
+  ): Promise<PublicSitemapEntry[]> {
+    const slugs = await this.loadSlugsByReferenceIds(rows.map((row) => row.id));
+
+    return rows.flatMap((row) => {
+      const slug = slugs.get(row.id);
+
+      if (!slug) {
+        return [];
+      }
+
+      return [
+        {
+          lastModified: row.updated_at,
+          url: new URL(slugToPath(slug), appEnv.APP_URL).toString(),
+        },
+      ];
+    });
+  }
 }
 
 export const publicContentService = new PublicContentService();
@@ -696,6 +1008,10 @@ function isPubliclyVisible(row: PageRow | PostRow): boolean {
 }
 
 function isPublicCategoryVisible(row: CategoryRow): boolean {
+  return row.status === "published" && !row.deleted_at;
+}
+
+function isPublicTagVisible(row: TagRow): boolean {
   return row.status === "published" && !row.deleted_at;
 }
 
@@ -797,6 +1113,33 @@ function toSlug(row: SlugRow): PublicSlug {
     locale: row.locale,
     prefix: row.prefix,
   };
+}
+
+function slugToPath(slug: PublicSlug): string {
+  return slug.prefix ? `/${slug.prefix}/${slug.key}` : `/${slug.key}`;
+}
+
+function buildMenuTree(nodes: PublicMenuNode[]): PublicMenuNode[] {
+  const nodesById = new Map<string, PublicMenuNode>(
+    nodes.map((node) => [node.id, { ...node, children: [] }]),
+  );
+  const roots: PublicMenuNode[] = [];
+
+  for (const source of nodes) {
+    const node = nodesById.get(source.id);
+
+    if (!node) {
+      continue;
+    }
+
+    if (source.parentId && nodesById.has(source.parentId)) {
+      nodesById.get(source.parentId)?.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+
+  return roots;
 }
 
 function toSeo(row: SeoMetaRow): PublicSeoMeta {

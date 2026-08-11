@@ -5,7 +5,9 @@ import { createAdminRouter } from "./admin/admin.routes.js";
 import { createAuthRouter } from "./auth/auth.routes.js";
 import { errorHandler, notFoundHandler } from "./http/error-handler.js";
 import { requestLogger } from "./http/request-logger.js";
-import { createPublicRouter } from "./public/public.routes.js";
+import { publicCache } from "./public/public-cache.js";
+import { publicContentService } from "./public/public-content.service.js";
+import { createPublicRouter, renderSitemap } from "./public/public.routes.js";
 
 export function createApp(): Express {
   const app = express();
@@ -13,6 +15,15 @@ export function createApp(): Express {
   app.disable("x-powered-by");
   app.use(requestLogger);
   app.use(express.json({ limit: "1mb" }));
+  app.use("/admin", (request, response, next) => {
+    response.on("finish", () => {
+      if (request.method !== "GET" && response.statusCode < 400) {
+        publicCache.clear();
+      }
+    });
+
+    next();
+  });
 
   app.get("/health", (_request: Request, response: Response) => {
     const health: HealthResponse = {
@@ -22,6 +33,28 @@ export function createApp(): Express {
     };
 
     response.status(200).json(health);
+  });
+
+  app.get("/sitemap.xml", async (_request, response, next) => {
+    try {
+      const entries = await publicCache.getOrSet("sitemap", () =>
+        publicContentService.getSitemapEntries(),
+      );
+
+      response.type("application/xml").send(renderSitemap(entries));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/robots.txt", async (_request, response, next) => {
+    try {
+      const body = await publicCache.getOrSet("robots", () => publicContentService.getRobotsTxt());
+
+      response.type("text/plain").send(`${body}\n`);
+    } catch (error) {
+      next(error);
+    }
   });
 
   app.use("/auth", createAuthRouter());

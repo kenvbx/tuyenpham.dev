@@ -45,6 +45,12 @@ export type PublicTag = {
   status: string;
 };
 
+export type PublicTagDetail = {
+  pagination: Pagination;
+  posts: PublicPostSummary[];
+  tag: PublicTag;
+};
+
 export type PublicPostSummary = {
   authorId: string | null;
   categories: PublicCategory[];
@@ -92,6 +98,37 @@ export type PublicCategoryDetail = {
   category: PublicCategory;
   pagination: Pagination;
   posts: PublicPostSummary[];
+};
+
+export type PublicMenuNode = {
+  children: PublicMenuNode[];
+  cssClass: string | null;
+  icon: string | null;
+  id: string;
+  linkType: string;
+  parentId: string | null;
+  rel: string | null;
+  resourceId: string | null;
+  resourceType: string | null;
+  target: string;
+  title: string;
+  url: string | null;
+};
+
+export type PublicMenu = {
+  id: string;
+  location: string;
+  name: string;
+  nodes: PublicMenuNode[];
+  slug: string;
+  updatedAt: string;
+};
+
+export type PublicSettings = Record<string, Record<string, unknown>>;
+
+export type PublicSitemapEntry = {
+  lastModified: string;
+  url: string;
 };
 
 export type PublicPostListParams = {

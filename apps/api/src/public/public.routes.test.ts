@@ -3,6 +3,7 @@ import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "../http/error-handler.js";
+import { PublicCache } from "./public-cache.js";
 import type { PublicContentService } from "./public-content.service.js";
 import type { PublicResolverService } from "./public-resolver.service.js";
 import { createPublicRouter } from "./public.routes.js";
@@ -18,7 +19,7 @@ function createTestHarness(options: {
   const app = express();
 
   app.use(express.json());
-  app.use("/public", createPublicRouter(options));
+  app.use("/public", createPublicRouter({ cache: new PublicCache(0), ...options }));
   app.use(errorHandler);
 
   return app;
@@ -281,5 +282,121 @@ describe("public routes", () => {
       },
       "vi",
     );
+  });
+
+  it("returns public tags with their posts", async () => {
+    const content = {
+      getTagBySlug: vi.fn(async () => ({
+        pagination: { page: 1, pageCount: 0, perPage: 20, total: 0 },
+        posts: [],
+        tag: {
+          description: null,
+          id: "10000000-0000-4000-8000-000000000510",
+          name: "Node",
+          slug: "node",
+          status: "published",
+        },
+      })),
+    } as unknown as PublicContentService;
+
+    const response = await request(createTestHarness({ content }))
+      .get("/public/tags/node")
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      posts: [],
+      tag: { name: "Node", slug: "node" },
+    });
+    expect(content.getTagBySlug).toHaveBeenCalledWith("node", {
+      locale: "vi",
+      page: 1,
+      perPage: 20,
+    });
+  });
+
+  it("returns menus by location", async () => {
+    const content = {
+      getMenuByLocation: vi.fn(async () => ({
+        id: "10000000-0000-4000-8000-000000000511",
+        location: "header",
+        name: "Header",
+        nodes: [
+          {
+            children: [],
+            cssClass: null,
+            icon: null,
+            id: "10000000-0000-4000-8000-000000000512",
+            linkType: "custom",
+            parentId: null,
+            rel: null,
+            resourceId: null,
+            resourceType: null,
+            target: "_self",
+            title: "Home",
+            url: "/",
+          },
+        ],
+        slug: "header",
+        updatedAt: "2026-08-10T00:00:00.000Z",
+      })),
+    } as unknown as PublicContentService;
+
+    const response = await request(createTestHarness({ content }))
+      .get("/public/menus/header")
+      .expect(200);
+
+    expect(response.body.data).toMatchObject({
+      location: "header",
+      nodes: [{ title: "Home", url: "/" }],
+    });
+    expect(content.getMenuByLocation).toHaveBeenCalledWith("header");
+  });
+
+  it("returns public settings", async () => {
+    const content = {
+      getPublicSettings: vi.fn(async () => ({
+        site: {
+          name: "Tuyen Pham",
+        },
+      })),
+    } as unknown as PublicContentService;
+
+    const response = await request(createTestHarness({ content }))
+      .get("/public/settings?namespace=site")
+      .expect(200);
+
+    expect(response.body.data).toEqual({ site: { name: "Tuyen Pham" } });
+    expect(content.getPublicSettings).toHaveBeenCalledWith("site");
+  });
+
+  it("returns sitemap XML", async () => {
+    const content = {
+      getSitemapEntries: vi.fn(async () => [
+        {
+          lastModified: "2026-08-10T00:00:00.000Z",
+          url: "http://localhost:4000/about",
+        },
+      ]),
+    } as unknown as PublicContentService;
+
+    const response = await request(createTestHarness({ content }))
+      .get("/public/sitemap.xml")
+      .expect(200);
+
+    expect(response.type).toBe("application/xml");
+    expect(response.text).toContain("<loc>http://localhost:4000/about</loc>");
+  });
+
+  it("returns robots.txt", async () => {
+    const content = {
+      getRobotsTxt: vi.fn(async () => "User-agent: *\nAllow: /"),
+    } as unknown as PublicContentService;
+
+    const response = await request(createTestHarness({ content }))
+      .get("/public/robots.txt")
+      .expect(200);
+
+    expect(response.type).toBe("text/plain");
+    expect(response.text).toContain("User-agent: *");
   });
 });
