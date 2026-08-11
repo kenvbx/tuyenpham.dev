@@ -1,7 +1,7 @@
 # Tuyen Pham CMS
 
-A Botble-inspired CMS built as a TypeScript monorepo with React/Vite admin,
-Express API, shared contracts, Tailwind styling, and Supabase as the current
+A modular CMS built as a TypeScript monorepo with React/Vite admin, Express API,
+shared contracts, Tailwind styling, and Supabase as the current
 database/auth/storage platform.
 
 ## Workspace
