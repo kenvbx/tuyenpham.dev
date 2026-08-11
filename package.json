@@ -18,6 +18,9 @@
     "format:check": "prettier --check .",
     "perf:budget": "pnpm --filter @cms/tooling perf:budget",
     "qa:checklist": "pnpm --filter @cms/tooling qa:checklist",
+    "staging:check": "pnpm --filter @cms/tooling staging:check",
+    "staging:deploy": "pnpm --filter @cms/tooling staging:deploy",
+    "staging:smoke": "pnpm --filter @cms/tooling staging:smoke",
     "admin:seed-production": "pnpm --filter @cms/tooling admin:seed-production",
     "db:migrate": "pnpm --filter @cms/tooling db:migrate",
     "db:seed": "pnpm --filter @cms/tooling db:seed"

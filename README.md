@@ -158,6 +158,45 @@ Required runtime configuration:
   optional `DATABASE_URL`, optional `ERROR_MONITORING_DSN`, `LOG_LEVEL`.
 - Admin: `VITE_API_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
 
+Staging target:
+
+- Admin: Vercel static deployment from `apps/admin`.
+- API: Render web service from `apps/api`.
+- Database/Auth/Storage: separate Supabase staging project.
+- GitHub environment: `staging`.
+
+Staging setup:
+
+1. Create a Supabase staging project and copy `apps/api/.env.staging.example`.
+2. Create the Render staging service from `render.yaml` and set all `sync: false` secrets.
+3. Create the Vercel staging project from `vercel.json` and set `VITE_*` staging env vars.
+4. Add GitHub environment secrets:
+
+   - `STAGING_ADMIN_URL`
+   - `STAGING_API_URL`
+   - `STAGING_DATABASE_URL`
+   - `STAGING_SUPABASE_URL`
+   - `STAGING_SUPABASE_ANON_KEY`
+   - `STAGING_SUPABASE_SERVICE_ROLE_KEY`
+   - optional `STAGING_RENDER_DEPLOY_HOOK_URL`
+   - optional `STAGING_VERCEL_DEPLOY_HOOK_URL`
+
+5. Validate staging secret shape:
+
+   ```sh
+   STAGING_ADMIN_URL=https://cms-admin-staging.example.com \
+   STAGING_API_URL=https://cms-api-staging.example.com \
+   STAGING_DATABASE_URL=postgresql://... \
+   STAGING_SUPABASE_URL=https://project-ref.supabase.co \
+   STAGING_SUPABASE_ANON_KEY=... \
+   STAGING_SUPABASE_SERVICE_ROLE_KEY=... \
+   pnpm staging:check
+   ```
+
+6. Run the GitHub `Staging` workflow manually. It verifies the candidate, applies migrations to
+   staging, optionally triggers Render/Vercel deploy hooks, then runs smoke checks against the
+   deployed URLs.
+
 Release steps:
 
 1. Run the full verification command:

@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: tuyenpham-cms-api-staging
+    runtime: node
+    plan: starter
+    branch: main
+    region: singapore
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @cms/shared build && pnpm --filter @cms/api build
+    startCommand: pnpm --filter @cms/api start
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: LOG_LEVEL
+        value: info
+      - key: APP_URL
+        sync: false
+      - key: ADMIN_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: ERROR_MONITORING_DSN
+        sync: false

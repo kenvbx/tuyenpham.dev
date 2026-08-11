@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm build:admin",
+  "devCommand": "pnpm dev:admin",
+  "framework": "vite",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "outputDirectory": "apps/admin/dist",
+  "rewrites": [
+    {
+      "source": "/((?!assets/|favicon.ico).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
