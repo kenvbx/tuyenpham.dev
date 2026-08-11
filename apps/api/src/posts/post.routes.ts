@@ -49,6 +49,7 @@ const postBodySchema = z.object({
   tagIds: z.array(z.string().uuid()).default([]),
   title: z.string().trim().min(1).max(255),
 });
+const updatePostBodySchema = postBodySchema.partial();
 const postParamsSchema = z.object({
   postId: z.string().uuid(),
 });
@@ -133,6 +134,66 @@ export function createPostRouter(options: PostRouterOptions = {}): ExpressRouter
         });
 
         response.status(201).json(createApiSuccessResponse(post));
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.patch(
+    "/:postId",
+    requireAuth(auth),
+    requirePermission(Permission.BLOG_POSTS_EDIT, permissions),
+    async (request, response, next) => {
+      try {
+        const params = postParamsSchema.parse(request.params);
+        const body = updatePostBodySchema.parse(request.body);
+        const post = await posts.updatePost(params.postId, {
+          ...body,
+          updatedBy: request.auth?.user.id ?? null,
+        });
+
+        await audit.log({
+          action: "blog-posts.update",
+          actorId: request.auth?.user.id ?? null,
+          afterData: body,
+          entityId: post.id,
+          entityType: "blog-post",
+          ipAddress: request.ip,
+          metadata: { slug: post.slug?.key, status: post.status, title: post.title },
+          requestId: request.header("x-request-id") ?? null,
+          userAgent: request.header("user-agent") ?? null,
+        });
+
+        response.json(createApiSuccessResponse(post));
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.delete(
+    "/:postId",
+    requireAuth(auth),
+    requirePermission(Permission.BLOG_POSTS_DELETE, permissions),
+    async (request, response, next) => {
+      try {
+        const params = postParamsSchema.parse(request.params);
+        const post = await posts.deletePost(params.postId);
+
+        await audit.log({
+          action: "blog-posts.delete",
+          actorId: request.auth?.user.id ?? null,
+          afterData: { status: post.status },
+          entityId: post.id,
+          entityType: "blog-post",
+          ipAddress: request.ip,
+          metadata: { title: post.title },
+          requestId: request.header("x-request-id") ?? null,
+          userAgent: request.header("user-agent") ?? null,
+        });
+
+        response.json(createApiSuccessResponse(post));
       } catch (error) {
         next(error);
       }

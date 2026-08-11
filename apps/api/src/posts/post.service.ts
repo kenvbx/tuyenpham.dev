@@ -15,6 +15,7 @@ import type {
   PostSlug,
   PostSummary,
   PostTag,
+  UpdatePostInput,
 } from "./post.types.js";
 
 type SupabaseQueryResult<TData> = {
@@ -27,12 +28,14 @@ type QueryBuilder = PromiseLike<SupabaseQueryResult<unknown[]>> & {
   eq: (column: string, value: unknown) => QueryBuilder;
   in: (column: string, values: unknown[]) => QueryBuilder;
   insert: (values: unknown) => QueryBuilder;
+  delete: () => QueryBuilder;
   maybeSingle: () => Promise<SupabaseQueryResult<unknown>>;
   neq: (column: string, value: unknown) => QueryBuilder;
   or: (filters: string) => QueryBuilder;
   order: (column: string, options?: { ascending?: boolean }) => QueryBuilder;
   range: (from: number, to: number) => QueryBuilder;
   select: (columns: string, options?: { count?: "exact" }) => QueryBuilder;
+  update: (values: unknown) => QueryBuilder;
   upsert: (values: unknown, options?: { onConflict?: string }) => QueryBuilder;
 };
 
@@ -157,6 +160,17 @@ export class PostService {
     }
 
     if (scopedPostIds) {
+      if (scopedPostIds.length === 0) {
+        return {
+          data: [],
+          pagination: createPagination({
+            page: params.page,
+            perPage: params.perPage,
+            total: 0,
+          }),
+        };
+      }
+
       query = query.in("id", scopedPostIds);
     }
 
@@ -265,16 +279,97 @@ export class PostService {
     return this.getPost(post.id);
   }
 
+  async updatePost(postId: string, input: UpdatePostInput): Promise<PostDetail> {
+    await this.loadPostById(postId);
+    const patch = {
+      ...(input.contentHtml !== undefined ? { content_html: input.contentHtml } : {}),
+      ...(input.contentJson !== undefined ? { content_json: input.contentJson } : {}),
+      ...(input.contentText !== undefined ? { content_text: input.contentText } : {}),
+      ...(input.excerpt !== undefined ? { excerpt: input.excerpt } : {}),
+      ...(input.featuredImageId !== undefined ? { featured_image_id: input.featuredImageId } : {}),
+      ...(input.publishedAt !== undefined ? { published_at: input.publishedAt } : {}),
+      ...(input.status !== undefined ? { status: input.status } : {}),
+      ...(input.title !== undefined ? { title: input.title } : {}),
+    };
+
+    if (Object.keys(patch).length > 0) {
+      const result = await this.from("posts").update(patch).eq("id", postId);
+
+      if (result.error) {
+        throw new HttpError("Unable to update post.", {
+          code: "post_update_failed",
+          details: { cause: result.error.message },
+          statusCode: 500,
+        });
+      }
+    }
+
+    if (input.slug !== undefined) {
+      await this.replaceSlug(postId, input.slug, input.updatedBy ?? null);
+    }
+
+    if (input.categoryIds !== undefined) {
+      await this.replaceCategories(postId, input.categoryIds);
+    }
+
+    if (input.tagIds !== undefined) {
+      await this.replaceTags(postId, input.tagIds);
+    }
+
+    if (input.seo !== undefined) {
+      await this.upsertSeo(postId, input.seo, input.updatedBy ?? null);
+    }
+
+    return this.getPost(postId);
+  }
+
+  async deletePost(postId: string): Promise<PostDetail> {
+    await this.loadPostById(postId);
+    const result = await this.from("posts")
+      .update({ deleted_at: new Date().toISOString(), status: "deleted" })
+      .eq("id", postId);
+
+    if (result.error) {
+      throw new HttpError("Unable to delete post.", {
+        code: "post_delete_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
+    }
+
+    const slugResult = await this.from("slugs")
+      .update({ is_active: false })
+      .eq("reference_type", "blog-post")
+      .eq("reference_id", postId)
+      .eq("is_active", true);
+
+    if (slugResult.error) {
+      throw new HttpError("Unable to deactivate post slug.", {
+        code: "post_slug_deactivate_failed",
+        details: { cause: slugResult.error.message },
+        statusCode: 500,
+      });
+    }
+
+    const post = await this.loadPostById(postId, { includeDeleted: true });
+    return toPostDetail(post, null, await this.loadSeo(postId), null, [], []);
+  }
+
   private from(table: string): QueryBuilder {
     return this.client.from(table) as unknown as QueryBuilder;
   }
 
-  private async loadPostById(postId: string): Promise<PostRow> {
-    const result = await this.from("posts")
-      .select(POST_SELECT)
-      .eq("id", postId)
-      .neq("status", "deleted")
-      .maybeSingle();
+  private async loadPostById(
+    postId: string,
+    options: { includeDeleted?: boolean } = {},
+  ): Promise<PostRow> {
+    let query = this.from("posts").select(POST_SELECT).eq("id", postId);
+
+    if (!options.includeDeleted) {
+      query = query.neq("status", "deleted");
+    }
+
+    const result = await query.maybeSingle();
 
     if (result.error) {
       throw new HttpError("Unable to load post.", {
@@ -500,7 +595,48 @@ export class PostService {
     }
   }
 
+  private async replaceSlug(postId: string, requestedSlug: string, updatedBy: string | null) {
+    const nextSlug = (
+      await this.slugs.suggestUniqueSlug({
+        currentReferenceId: postId,
+        referenceType: "blog-post",
+        source: requestedSlug,
+      })
+    ).slug;
+    const existingSlug = await this.loadActiveSlug(postId);
+
+    if (existingSlug?.key === nextSlug) {
+      return;
+    }
+
+    const deactivateResult = await this.from("slugs")
+      .update({ is_active: false, updated_by: updatedBy })
+      .eq("reference_type", "blog-post")
+      .eq("reference_id", postId)
+      .eq("is_active", true);
+
+    if (deactivateResult.error) {
+      throw new HttpError("Unable to deactivate old post slug.", {
+        code: "post_slug_deactivate_failed",
+        details: { cause: deactivateResult.error.message },
+        statusCode: 500,
+      });
+    }
+
+    await this.createSlug({ createdBy: updatedBy, key: nextSlug, postId });
+  }
+
   private async replaceCategories(postId: string, categoryIds: string[]): Promise<void> {
+    const deleteResult = await this.from("post_categories").delete().eq("post_id", postId);
+
+    if (deleteResult.error) {
+      throw new HttpError("Unable to clear post categories.", {
+        code: "post_categories_clear_failed",
+        details: { cause: deleteResult.error.message },
+        statusCode: 500,
+      });
+    }
+
     if (categoryIds.length === 0) {
       return;
     }
@@ -523,6 +659,16 @@ export class PostService {
   }
 
   private async replaceTags(postId: string, tagIds: string[]): Promise<void> {
+    const deleteResult = await this.from("post_tags").delete().eq("post_id", postId);
+
+    if (deleteResult.error) {
+      throw new HttpError("Unable to clear post tags.", {
+        code: "post_tags_clear_failed",
+        details: { cause: deleteResult.error.message },
+        statusCode: 500,
+      });
+    }
+
     if (tagIds.length === 0) {
       return;
     }

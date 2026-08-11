@@ -291,6 +291,111 @@ export type PageSlugSuggestion = {
   slug: string;
 };
 
+export type AdminPostStatus = "archived" | "draft" | "published" | "scheduled";
+
+export type AdminPostSlug = AdminPageSlug;
+export type AdminPostSeoMeta = AdminPageSeoMeta;
+export type AdminPostAuthor = AdminPageAuthor;
+
+export type AdminCategory = {
+  createdAt: string;
+  createdBy: string | null;
+  deletedAt: string | null;
+  description: string | null;
+  id: string;
+  name: string;
+  parentId: string | null;
+  slug: string | null;
+  sortOrder: number;
+  status: AdminPostStatus | "deleted" | string;
+  updatedAt: string;
+  updatedBy: string | null;
+};
+
+export type AdminTag = {
+  createdAt: string;
+  createdBy: string | null;
+  deletedAt: string | null;
+  description: string | null;
+  id: string;
+  name: string;
+  slug: string;
+  status: AdminPostStatus | "deleted" | string;
+  updatedAt: string;
+  updatedBy: string | null;
+};
+
+export type AdminPostSummary = {
+  authorId: string | null;
+  categories: AdminCategory[];
+  createdAt: string;
+  deletedAt: string | null;
+  excerpt: string | null;
+  featuredImageId: string | null;
+  id: string;
+  publishedAt: string | null;
+  slug: AdminPostSlug | null;
+  status: AdminPostStatus | "deleted" | string;
+  tags: AdminTag[];
+  title: string;
+  updatedAt: string;
+  viewsCount: number;
+};
+
+export type AdminPostDetail = AdminPostSummary & {
+  author: AdminPostAuthor | null;
+  contentHtml: string | null;
+  contentJson: Record<string, unknown> | null;
+  contentText: string | null;
+  contentVersion: number;
+  seo: AdminPostSeoMeta | null;
+};
+
+export type PostListFilters = {
+  categoryId?: string | undefined;
+  page: number;
+  perPage: number;
+  search?: string | undefined;
+  status?: string | undefined;
+  tagId?: string | undefined;
+};
+
+export type PostFormInput = {
+  categoryIds?: string[] | undefined;
+  contentHtml?: string | null | undefined;
+  contentText?: string | null | undefined;
+  excerpt?: string | null | undefined;
+  featuredImageId?: string | null | undefined;
+  publishedAt?: string | null | undefined;
+  seo?: PageFormInput["seo"];
+  slug?: string | undefined;
+  status?: AdminPostStatus | undefined;
+  tagIds?: string[] | undefined;
+  title: string;
+};
+
+export type CategoryFormInput = {
+  description?: string | null | undefined;
+  name: string;
+  parentId?: string | null | undefined;
+  slug?: string | undefined;
+  sortOrder?: number | undefined;
+  status?: AdminPostStatus | undefined;
+};
+
+export type CategoryReorderItem = {
+  id: string;
+  parentId?: string | null | undefined;
+  sortOrder: number;
+};
+
+export type TagFormInput = {
+  description?: string | null | undefined;
+  name: string;
+  slug?: string | undefined;
+  status?: AdminPostStatus | undefined;
+};
+
 type RequestOptions = {
   body?: unknown;
   method?: "DELETE" | "GET" | "PATCH" | "POST";
@@ -575,6 +680,178 @@ export async function suggestPageSlug(
   return response.data;
 }
 
+export async function listPosts(token: string, filters: PostListFilters) {
+  const params = new URLSearchParams({
+    page: String(filters.page),
+    perPage: String(filters.perPage),
+  });
+
+  if (filters.search) {
+    params.set("search", filters.search);
+  }
+
+  if (filters.status) {
+    params.set("status", filters.status);
+  }
+
+  if (filters.categoryId) {
+    params.set("categoryId", filters.categoryId);
+  }
+
+  if (filters.tagId) {
+    params.set("tagId", filters.tagId);
+  }
+
+  return apiRequest<ApiListResponse<AdminPostSummary>>(`/admin/posts?${params.toString()}`, {
+    token,
+  });
+}
+
+export async function getPost(token: string, postId: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminPostDetail>>(`/admin/posts/${postId}`, {
+    token,
+  });
+
+  return response.data;
+}
+
+export async function createPost(token: string, input: PostFormInput) {
+  const response = await apiRequest<ApiSuccessResponse<AdminPostDetail>>("/admin/posts", {
+    body: cleanPostPayload(input),
+    method: "POST",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function updatePost(token: string, postId: string, input: PostFormInput) {
+  const response = await apiRequest<ApiSuccessResponse<AdminPostDetail>>(`/admin/posts/${postId}`, {
+    body: cleanPostPayload(input),
+    method: "PATCH",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function deletePost(token: string, postId: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminPostDetail>>(`/admin/posts/${postId}`, {
+    method: "DELETE",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function listCategories(token: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminCategory[]>>("/admin/categories", {
+    token,
+  });
+
+  return response.data;
+}
+
+export async function createCategory(token: string, input: CategoryFormInput) {
+  const response = await apiRequest<ApiSuccessResponse<AdminCategory>>("/admin/categories", {
+    body: cleanCategoryPayload(input),
+    method: "POST",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function updateCategory(token: string, categoryId: string, input: CategoryFormInput) {
+  const response = await apiRequest<ApiSuccessResponse<AdminCategory>>(
+    `/admin/categories/${categoryId}`,
+    {
+      body: cleanCategoryPayload(input),
+      method: "PATCH",
+      token,
+    },
+  );
+
+  return response.data;
+}
+
+export async function deleteCategory(token: string, categoryId: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminCategory>>(
+    `/admin/categories/${categoryId}`,
+    {
+      method: "DELETE",
+      token,
+    },
+  );
+
+  return response.data;
+}
+
+export async function reorderCategories(token: string, items: CategoryReorderItem[]) {
+  const response = await apiRequest<ApiSuccessResponse<AdminCategory[]>>(
+    "/admin/categories/reorder",
+    {
+      body: { items },
+      method: "POST",
+      token,
+    },
+  );
+
+  return response.data;
+}
+
+export async function listTags(
+  token: string,
+  filters: { search?: string | undefined; status?: string | undefined } = {},
+) {
+  const params = new URLSearchParams();
+
+  if (filters.search) {
+    params.set("search", filters.search);
+  }
+
+  if (filters.status) {
+    params.set("status", filters.status);
+  }
+
+  const query = params.toString();
+  const response = await apiRequest<ApiSuccessResponse<AdminTag[]>>(
+    `/admin/tags${query ? `?${query}` : ""}`,
+    { token },
+  );
+
+  return response.data;
+}
+
+export async function createTag(token: string, input: TagFormInput) {
+  const response = await apiRequest<ApiSuccessResponse<AdminTag>>("/admin/tags", {
+    body: cleanTagPayload(input),
+    method: "POST",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function updateTag(token: string, tagId: string, input: TagFormInput) {
+  const response = await apiRequest<ApiSuccessResponse<AdminTag>>(`/admin/tags/${tagId}`, {
+    body: cleanTagPayload(input),
+    method: "PATCH",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function deleteTag(token: string, tagId: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminTag>>(`/admin/tags/${tagId}`, {
+    method: "DELETE",
+    token,
+  });
+
+  return response.data;
+}
+
 export async function listUsers(token: string, filters: UserListFilters) {
   const params = new URLSearchParams({
     page: String(filters.page),
@@ -703,6 +980,35 @@ function cleanPagePayload(input: PageFormInput | PageStatusInput) {
           Object.fromEntries(Object.entries(value).filter(([, nestedValue]) => nestedValue !== "")),
         ];
       }),
+  );
+}
+
+function cleanPostPayload(input: PostFormInput) {
+  return Object.fromEntries(
+    Object.entries(input)
+      .filter(([, value]) => value !== "" && value !== undefined)
+      .map(([key, value]) => {
+        if (key !== "seo" || typeof value !== "object" || value === null) {
+          return [key, value];
+        }
+
+        return [
+          key,
+          Object.fromEntries(Object.entries(value).filter(([, nestedValue]) => nestedValue !== "")),
+        ];
+      }),
+  );
+}
+
+function cleanCategoryPayload(input: CategoryFormInput) {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => value !== "" && value !== undefined),
+  );
+}
+
+function cleanTagPayload(input: TagFormInput) {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => value !== "" && value !== undefined),
   );
 }
 

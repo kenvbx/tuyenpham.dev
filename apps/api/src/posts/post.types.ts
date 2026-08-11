@@ -99,6 +99,22 @@ export type CreatePostInput = {
   title: string;
 };
 
+export type UpdatePostInput = {
+  categoryIds?: string[] | undefined;
+  contentHtml?: string | null | undefined;
+  contentJson?: Record<string, unknown> | null | undefined;
+  contentText?: string | null | undefined;
+  excerpt?: string | null | undefined;
+  featuredImageId?: string | null | undefined;
+  publishedAt?: string | null | undefined;
+  seo?: PostSeoInput | undefined;
+  slug?: string | undefined;
+  status?: Exclude<PostStatus, "deleted"> | undefined;
+  tagIds?: string[] | undefined;
+  title?: string | undefined;
+  updatedBy?: string | null | undefined;
+};
+
 export type ListPostsParams = {
   categoryId?: string | undefined;
   page: number;

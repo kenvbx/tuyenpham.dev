@@ -211,4 +211,70 @@ describe("post routes", () => {
       }),
     );
   });
+
+  it("updates posts with content relations slug and seo", async () => {
+    const posts = {
+      updatePost: vi.fn(async () => ({ ...postResponse(), title: "Updated post" })),
+    } as unknown as PostService;
+    const { app, audit } = createTestHarness(posts);
+
+    const response = await request(app)
+      .patch(`/admin/posts/${postId}`)
+      .set("Authorization", "Bearer token")
+      .send({
+        categoryIds: [categoryId],
+        contentHtml: "<p>Updated body</p>",
+        seo: { metaTitle: "Updated post" },
+        slug: "updated-post",
+        tagIds: [tagId],
+        title: "Updated post",
+      })
+      .expect(200);
+
+    expect(response.body.data.title).toBe("Updated post");
+    expect(posts.updatePost).toHaveBeenCalledWith(postId, {
+      categoryIds: [categoryId],
+      contentHtml: "<p>Updated body</p>",
+      seo: { metaTitle: "Updated post" },
+      slug: "updated-post",
+      tagIds: [tagId],
+      title: "Updated post",
+      updatedBy: user.id,
+    });
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "blog-posts.update",
+        actorId: user.id,
+        entityId: postId,
+        entityType: "blog-post",
+      }),
+    );
+  });
+
+  it("deletes posts and audits the action", async () => {
+    const posts = {
+      deletePost: vi.fn(async () => ({
+        ...postResponse(),
+        deletedAt: "2026-08-11T00:00:00.000Z",
+        status: "deleted",
+      })),
+    } as unknown as PostService;
+    const { app, audit } = createTestHarness(posts);
+
+    const response = await request(app)
+      .delete(`/admin/posts/${postId}`)
+      .set("Authorization", "Bearer token")
+      .expect(200);
+
+    expect(response.body.data.status).toBe("deleted");
+    expect(posts.deletePost).toHaveBeenCalledWith(postId);
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "blog-posts.delete",
+        actorId: user.id,
+        entityId: postId,
+        entityType: "blog-post",
+      }),
+    );
+  });
 });
