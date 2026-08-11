@@ -54,6 +54,16 @@ const pageParamsSchema = z.object({
 const listPagesQuerySchema = listQuerySchema.extend({
   status: pageStatusSchema.optional(),
 });
+const slugSuggestionQuerySchema = z
+  .object({
+    pageId: z.string().uuid().optional(),
+    slug: z.string().trim().min(1).max(160).optional(),
+    title: z.string().trim().min(1).max(255).optional(),
+  })
+  .refine((value) => value.slug || value.title, {
+    message: "Slug or title is required.",
+    path: ["slug"],
+  });
 
 export type PageRouterOptions = {
   audit?: AuditService;
@@ -83,6 +93,25 @@ export function createPageRouter(options: PageRouterOptions = {}): ExpressRouter
         );
 
         response.json(body);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.get(
+    "/slugs/suggest",
+    requireAuth(auth),
+    requirePermission(Permission.PAGES_CREATE, permissions),
+    async (request, response, next) => {
+      try {
+        const query = slugSuggestionQuerySchema.parse(request.query);
+        const suggestion = await pages.suggestSlug({
+          pageId: query.pageId,
+          source: query.slug ?? query.title ?? "",
+        });
+
+        response.json(createApiSuccessResponse(suggestion));
       } catch (error) {
         next(error);
       }

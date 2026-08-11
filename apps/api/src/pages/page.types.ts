@@ -7,6 +7,13 @@ export type PageSlug = {
   prefix: string;
 };
 
+export type PageSlugSuggestion = {
+  available: boolean;
+  changed: boolean;
+  requestedSlug: string;
+  slug: string;
+};
+
 export type PageSeoMeta = {
   canonicalUrl: string | null;
   id: string;

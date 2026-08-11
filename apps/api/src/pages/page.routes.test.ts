@@ -147,6 +147,35 @@ describe("page routes", () => {
     expect(pages.getPage).toHaveBeenCalledWith(pageId);
   });
 
+  it("suggests unique page slugs before create or update", async () => {
+    const pages = {
+      suggestSlug: vi.fn(async () => ({
+        available: false,
+        changed: true,
+        requestedSlug: "about",
+        slug: "about-2",
+      })),
+    } as unknown as PageService;
+
+    const response = await request(createTestHarness(pages).app)
+      .get(`/admin/pages/slugs/suggest?title=About&pageId=${pageId}`)
+      .set("Authorization", "Bearer token")
+      .expect(200);
+
+    expect(response.body).toEqual({
+      data: {
+        available: false,
+        changed: true,
+        requestedSlug: "about",
+        slug: "about-2",
+      },
+    });
+    expect(pages.suggestSlug).toHaveBeenCalledWith({
+      pageId,
+      source: "About",
+    });
+  });
+
   it("creates pages with unique slug inputs", async () => {
     const pages = {
       createPage: vi.fn(async () => pageResponse()),

@@ -2,6 +2,7 @@ import { createPagination } from "@cms/shared";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { HttpError } from "../http/http-error.js";
+import { slugService, type SlugService } from "../slugs/slug.service.js";
 import { supabase } from "../supabase/client.js";
 import type {
   CreatePageInput,
@@ -11,6 +12,7 @@ import type {
   PageSeoInput,
   PageSeoMeta,
   PageSlug,
+  PageSlugSuggestion,
   PageSummary,
   UpdatePageInput,
 } from "./page.types.js";
@@ -40,6 +42,7 @@ type PageServiceClient = Pick<SupabaseClient, "from">;
 
 export type PageServiceOptions = {
   client?: PageServiceClient;
+  slugs?: SlugService;
 };
 
 type PageRow = {
@@ -96,9 +99,11 @@ const AUTHOR_SELECT = "id,email,display_name";
 
 export class PageService {
   private readonly client: PageServiceClient;
+  private readonly slugs: SlugService;
 
   constructor(options: PageServiceOptions = {}) {
     this.client = options.client ?? supabase;
+    this.slugs = options.slugs ?? slugService;
   }
 
   async listPages(params: ListPagesParams) {
@@ -154,6 +159,17 @@ export class PageService {
     return toPageDetail(page, slug, seo, author);
   }
 
+  async suggestSlug(input: {
+    pageId?: string | undefined;
+    source: string;
+  }): Promise<PageSlugSuggestion> {
+    return this.slugs.suggestUniqueSlug({
+      currentReferenceId: input.pageId,
+      referenceType: "page",
+      source: input.source,
+    });
+  }
+
   async createPage(input: CreatePageInput): Promise<PageDetail> {
     const result = await this.from("pages")
       .insert({
@@ -186,9 +202,10 @@ export class PageService {
     }
 
     const page = result.data as PageRow;
+    const slugSuggestion = await this.suggestSlug({ source: input.slug ?? page.title });
     const slug = await this.createSlug({
       createdBy: input.authorId ?? null,
-      key: await this.generateUniqueSlug(input.slug ?? page.title),
+      key: slugSuggestion.slug,
       pageId: page.id,
     });
 
@@ -233,13 +250,7 @@ export class PageService {
       await this.upsertSeo(pageId, input.seo, input.updatedBy ?? null);
     }
 
-    const page = await this.loadPageById(pageId, { includeDeleted: true });
-    const [seo, author] = await Promise.all([
-      this.loadSeo(page.id),
-      page.author_id ? this.loadAuthor(page.author_id) : Promise.resolve(null),
-    ]);
-
-    return toPageDetail(page, null, seo, author);
+    return this.getPage(pageId);
   }
 
   async deletePage(pageId: string): Promise<PageDetail> {
@@ -274,7 +285,13 @@ export class PageService {
       });
     }
 
-    return this.getPage(pageId);
+    const page = await this.loadPageById(pageId, { includeDeleted: true });
+    const [seo, author] = await Promise.all([
+      this.loadSeo(page.id),
+      page.author_id ? this.loadAuthor(page.author_id) : Promise.resolve(null),
+    ]);
+
+    return toPageDetail(page, null, seo, author);
   }
 
   private from(table: string): QueryBuilder {
@@ -428,7 +445,7 @@ export class PageService {
   }
 
   private async replaceSlug(pageId: string, requestedSlug: string, updatedBy: string | null) {
-    const nextSlug = await this.generateUniqueSlug(requestedSlug, pageId);
+    const nextSlug = (await this.suggestSlug({ pageId, source: requestedSlug })).slug;
     const existingSlug = await this.loadActiveSlug(pageId);
 
     if (existingSlug?.key === nextSlug) {
@@ -481,41 +498,6 @@ export class PageService {
         statusCode: 500,
       });
     }
-  }
-
-  private async generateUniqueSlug(source: string, currentPageId?: string): Promise<string> {
-    const base = slugify(source);
-    let candidate = base;
-    let suffix = 2;
-
-    while (await this.slugExists(candidate, currentPageId)) {
-      candidate = `${base}-${suffix}`;
-      suffix += 1;
-    }
-
-    return candidate;
-  }
-
-  private async slugExists(key: string, currentPageId?: string): Promise<boolean> {
-    const result = await this.from("slugs")
-      .select(SLUG_SELECT)
-      .eq("key", key)
-      .eq("prefix", "")
-      .eq("locale", "vi")
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (result.error) {
-      throw new HttpError("Unable to inspect page slug uniqueness.", {
-        code: "page_slug_unique_check_failed",
-        details: { cause: result.error.message },
-        statusCode: 500,
-      });
-    }
-
-    const slug = result.data as SlugRow | null;
-
-    return Boolean(slug && slug.reference_id !== currentPageId);
   }
 }
 
@@ -585,18 +567,6 @@ function toAuthor(row: AuthorRow): PageAuthor {
     email: row.email,
     id: row.id,
   };
-}
-
-function slugify(value: string): string {
-  return (
-    value
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/gu, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/gu, "-")
-      .replace(/^-+|-+$/gu, "")
-      .slice(0, 150) || "page"
-  );
 }
 
 function escapeSearch(value: string): string {
