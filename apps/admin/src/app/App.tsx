@@ -10,6 +10,7 @@ import { BlogPage } from "./pages/BlogPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MediaPage } from "./pages/MediaPage";
+import { MenusPage } from "./pages/MenusPage";
 import { PagesPage } from "./pages/PagesPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { RolesPage } from "./pages/RolesPage";
@@ -38,6 +39,14 @@ export function App() {
                 element={
                   <PermissionGate fallback={<DashboardPage />} permission={Permission.MEDIA_INDEX}>
                     <MediaPage />
+                  </PermissionGate>
+                }
+              />
+              <Route
+                path="menus"
+                element={
+                  <PermissionGate fallback={<DashboardPage />} permission={Permission.MENUS_INDEX}>
+                    <MenusPage />
                   </PermissionGate>
                 }
               />

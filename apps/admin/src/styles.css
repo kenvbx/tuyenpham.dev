@@ -1460,6 +1460,138 @@ select {
   font-size: 13px;
 }
 
+.menus-layout,
+.menu-builder-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.75fr);
+  gap: 18px;
+}
+
+.menu-builder-grid {
+  margin-top: 18px;
+}
+
+.menu-form {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.menu-form label {
+  display: grid;
+  gap: 7px;
+  color: #334155;
+  font-size: 14px;
+}
+
+.menu-form textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+
+.menu-builder-panel {
+  overflow: hidden;
+}
+
+.menu-builder-panel > section {
+  display: grid;
+  gap: 14px;
+}
+
+.menu-builder-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 18px;
+}
+
+.menu-builder-header p,
+.menu-builder-header h3 {
+  margin: 0;
+}
+
+.menu-builder-header p {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.menu-node-list {
+  display: grid;
+  gap: 8px;
+  padding: 0 18px 18px;
+}
+
+.menu-node-list > p {
+  margin: 0;
+  color: #64748b;
+}
+
+.menu-node-list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.menu-node-list article > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.menu-node-list strong,
+.menu-node-list span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-node-list span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.resource-picker {
+  display: grid;
+  gap: 10px;
+}
+
+.resource-picker > div {
+  display: grid;
+  max-height: 190px;
+  overflow: auto;
+  gap: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 10px;
+}
+
+.resource-picker button {
+  display: grid;
+  gap: 3px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  padding: 9px;
+  text-align: left;
+}
+
+.resource-picker span {
+  color: #64748b;
+  font-size: 12px;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -413,6 +413,83 @@ export type TagFormInput = {
   status?: AdminPostStatus | undefined;
 };
 
+export type AdminMenuStatus = "active" | "archived" | "inactive";
+export type AdminMenuNodeLinkType = "category" | "custom" | "label" | "page" | "post" | "tag";
+export type AdminMenuResourceType = "category" | "page" | "post" | "tag";
+
+export type AdminMenuSummary = {
+  createdAt: string;
+  createdBy: string | null;
+  deletedAt: string | null;
+  description: string | null;
+  id: string;
+  location: string;
+  name: string;
+  slug: string;
+  status: AdminMenuStatus | "deleted" | string;
+  updatedAt: string;
+  updatedBy: string | null;
+};
+
+export type AdminMenuNode = {
+  children: AdminMenuNode[];
+  createdAt: string;
+  createdBy: string | null;
+  cssClass: string | null;
+  deletedAt: string | null;
+  icon: string | null;
+  id: string;
+  linkType: AdminMenuNodeLinkType | string;
+  menuId: string;
+  parentId: string | null;
+  rel: string | null;
+  resourceId: string | null;
+  resourceType: AdminMenuResourceType | null;
+  sortOrder: number;
+  status: AdminMenuStatus | "deleted" | string;
+  target: "_blank" | "_self" | string;
+  title: string;
+  updatedAt: string;
+  updatedBy: string | null;
+  url: string | null;
+};
+
+export type AdminMenuDetail = AdminMenuSummary & {
+  nodes: AdminMenuNode[];
+};
+
+export type MenuFormInput = {
+  description?: string | null | undefined;
+  location: string;
+  name: string;
+  slug: string;
+  status?: AdminMenuStatus | undefined;
+};
+
+export type MenuNodeInput = {
+  children?: MenuNodeInput[] | undefined;
+  cssClass?: string | null | undefined;
+  icon?: string | null | undefined;
+  id?: string | undefined;
+  linkType: AdminMenuNodeLinkType;
+  rel?: string | null | undefined;
+  resourceId?: string | null | undefined;
+  resourceType?: AdminMenuResourceType | null | undefined;
+  sortOrder?: number | undefined;
+  status?: AdminMenuStatus | undefined;
+  target?: "_blank" | "_self" | undefined;
+  title: string;
+  url?: string | null | undefined;
+};
+
+export type LinkableResource = {
+  id: string;
+  status: string;
+  title: string;
+  type: AdminMenuResourceType;
+  updatedAt: string;
+};
+
 type RequestOptions = {
   body?: unknown;
   method?: "DELETE" | "GET" | "PATCH" | "POST";
@@ -903,6 +980,79 @@ export async function deleteTag(token: string, tagId: string) {
   return response.data;
 }
 
+export async function listMenus(token: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminMenuSummary[]>>("/admin/menus", {
+    token,
+  });
+
+  return response.data;
+}
+
+export async function getMenu(token: string, menuId: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminMenuDetail>>(`/admin/menus/${menuId}`, {
+    token,
+  });
+
+  return response.data;
+}
+
+export async function createMenu(token: string, input: MenuFormInput) {
+  const response = await apiRequest<ApiSuccessResponse<AdminMenuDetail>>("/admin/menus", {
+    body: cleanMenuPayload(input),
+    method: "POST",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function updateMenu(token: string, menuId: string, input: MenuFormInput) {
+  const response = await apiRequest<ApiSuccessResponse<AdminMenuDetail>>(`/admin/menus/${menuId}`, {
+    body: cleanMenuPayload(input),
+    method: "PATCH",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function saveMenuTree(token: string, menuId: string, nodes: MenuNodeInput[]) {
+  const response = await apiRequest<ApiSuccessResponse<AdminMenuDetail>>(
+    `/admin/menus/${menuId}/tree`,
+    {
+      body: { nodes },
+      method: "POST",
+      token,
+    },
+  );
+
+  return response.data;
+}
+
+export async function deleteMenu(token: string, menuId: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminMenuDetail>>(`/admin/menus/${menuId}`, {
+    method: "DELETE",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function searchLinkableResources(token: string, search: string) {
+  const params = new URLSearchParams();
+
+  if (search) {
+    params.set("search", search);
+  }
+
+  const response = await apiRequest<ApiSuccessResponse<LinkableResource[]>>(
+    `/admin/menus/linkable-resources${params.toString() ? `?${params.toString()}` : ""}`,
+    { token },
+  );
+
+  return response.data;
+}
+
 export async function listUsers(token: string, filters: UserListFilters) {
   const params = new URLSearchParams({
     page: String(filters.page),
@@ -1060,6 +1210,14 @@ function cleanCategoryPayload(input: CategoryFormInput) {
 }
 
 function cleanTagPayload(input: TagFormInput) {
+  return Object.fromEntries(
+    Object.entries(input).filter(
+      ([key, value]) => key !== "id" && value !== "" && value !== undefined,
+    ),
+  );
+}
+
+function cleanMenuPayload(input: MenuFormInput) {
   return Object.fromEntries(
     Object.entries(input).filter(
       ([key, value]) => key !== "id" && value !== "" && value !== undefined,

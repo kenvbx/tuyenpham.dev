@@ -6,6 +6,7 @@ import {
   type DashboardRouterOptions,
 } from "../dashboard/dashboard.routes.js";
 import { createMediaRouter, type MediaRouterOptions } from "../media/media.routes.js";
+import { createMenuRouter, type MenuRouterOptions } from "../menus/menu.routes.js";
 import { createPageRouter, type PageRouterOptions } from "../pages/page.routes.js";
 import { createPostRouter, type PostRouterOptions } from "../posts/post.routes.js";
 import { createRoleRouter, type RoleRouterOptions } from "../roles/role.routes.js";
@@ -16,6 +17,7 @@ export type AdminRouterOptions = {
   categories?: CategoryRouterOptions;
   dashboard?: DashboardRouterOptions;
   media?: MediaRouterOptions;
+  menus?: MenuRouterOptions;
   pages?: PageRouterOptions;
   posts?: PostRouterOptions;
   roles?: RoleRouterOptions;
@@ -29,6 +31,7 @@ export function createAdminRouter(options: AdminRouterOptions = {}): ExpressRout
   router.use("/categories", createCategoryRouter(options.categories));
   router.use("/dashboard", createDashboardRouter(options.dashboard));
   router.use("/media", createMediaRouter(options.media));
+  router.use("/menus", createMenuRouter(options.menus));
   router.use("/pages", createPageRouter(options.pages));
   router.use("/posts", createPostRouter(options.posts));
   router.use("/roles", createRoleRouter(options.roles));
