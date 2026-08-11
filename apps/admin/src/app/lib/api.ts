@@ -499,6 +499,68 @@ export type SettingsUpdateInput = {
   values: Record<string, SettingValue>;
 };
 
+export type AuditLogEntry = {
+  action: string;
+  actorId: string | null;
+  afterData: unknown;
+  beforeData: unknown;
+  createdAt: string;
+  entityId: string | null;
+  entityType: string;
+  id: string;
+  ipAddress: string | null;
+  metadata: Record<string, unknown>;
+  requestId: string | null;
+  userAgent: string | null;
+};
+
+export type AuditLogFilters = {
+  action?: string | undefined;
+  entityType?: string | undefined;
+  page: number;
+  perPage: number;
+  search?: string | undefined;
+};
+
+export type AdminRevision = {
+  createdAt: string;
+  createdBy: string | null;
+  entityId: string;
+  entityType: "page" | "post" | "setting";
+  id: string;
+  metadata: Record<string, unknown>;
+  revisionNumber: number;
+  snapshot: Record<string, unknown>;
+  title: string | null;
+};
+
+export type RevisionFilters = {
+  entityId?: string | undefined;
+  entityType?: "page" | "post" | "setting" | undefined;
+  page: number;
+  perPage: number;
+};
+
+export type BackupExport = {
+  format: "cms-json";
+  generatedAt: string;
+  schemaVersion: string;
+  tables: Record<string, unknown[]>;
+};
+
+export type ImportPlan = {
+  accepted: boolean;
+  estimatedItems: number;
+  format: "csv" | "json" | "markdown";
+  operations: Array<{
+    action: "create" | "skip" | "update";
+    count: number;
+    entityType: string;
+  }>;
+  sourceName: string | null;
+  warnings: string[];
+};
+
 type RequestOptions = {
   body?: unknown;
   method?: "DELETE" | "GET" | "PATCH" | "POST";
@@ -621,6 +683,90 @@ export async function clearSettingsCache(token: string) {
       token,
     },
   );
+
+  return response.data;
+}
+
+export async function listAuditLogs(token: string, filters: AuditLogFilters) {
+  const params = new URLSearchParams({
+    page: String(filters.page),
+    perPage: String(filters.perPage),
+  });
+
+  if (filters.search) {
+    params.set("search", filters.search);
+  }
+
+  if (filters.action) {
+    params.set("action", filters.action);
+  }
+
+  if (filters.entityType) {
+    params.set("entityType", filters.entityType);
+  }
+
+  return apiRequest<ApiListResponse<AuditLogEntry>>(`/admin/audit-logs?${params.toString()}`, {
+    token,
+  });
+}
+
+export async function getAuditLog(token: string, auditLogId: string) {
+  const response = await apiRequest<ApiSuccessResponse<AuditLogEntry>>(
+    `/admin/audit-logs/${auditLogId}`,
+    { token },
+  );
+
+  return response.data;
+}
+
+export async function listAdminRevisions(token: string, filters: RevisionFilters) {
+  const params = new URLSearchParams({
+    page: String(filters.page),
+    perPage: String(filters.perPage),
+  });
+
+  if (filters.entityType) {
+    params.set("entityType", filters.entityType);
+  }
+
+  if (filters.entityId) {
+    params.set("entityId", filters.entityId);
+  }
+
+  return apiRequest<ApiListResponse<AdminRevision>>(`/admin/revisions?${params.toString()}`, {
+    token,
+  });
+}
+
+export async function restoreAdminRevision(token: string, revisionId: string) {
+  const response = await apiRequest<ApiSuccessResponse<unknown>>(
+    `/admin/revisions/${revisionId}/restore`,
+    {
+      method: "POST",
+      token,
+    },
+  );
+
+  return response.data;
+}
+
+export async function createBackupExport(token: string) {
+  const response = await apiRequest<ApiSuccessResponse<BackupExport>>("/admin/system/export", {
+    token,
+  });
+
+  return response.data;
+}
+
+export async function createImportPlan(
+  token: string,
+  input: { format: "csv" | "json" | "markdown"; items?: unknown[]; sourceName?: string },
+) {
+  const response = await apiRequest<ApiSuccessResponse<ImportPlan>>("/admin/system/import/plan", {
+    body: input,
+    method: "POST",
+    token,
+  });
 
   return response.data;
 }

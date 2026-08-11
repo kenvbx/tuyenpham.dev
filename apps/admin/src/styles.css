@@ -540,6 +540,7 @@ select {
 
 .profile-page,
 .roles-page,
+.audit-page,
 .media-page,
 .pages-page,
 .settings-page,
@@ -662,6 +663,32 @@ select {
   padding: 12px;
 }
 
+.audit-tabs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.audit-tabs button {
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+  padding: 9px 12px;
+}
+
+.audit-tabs button:hover,
+.audit-tabs button.is-active {
+  background: #eaf1ff;
+  color: #1f6feb;
+}
+
 .settings-tabs button {
   display: flex;
   width: 100%;
@@ -741,6 +768,94 @@ select {
 }
 
 .settings-inline-action small {
+  color: #64748b;
+}
+
+.audit-operations {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.audit-operations .form-panel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.audit-operations .form-panel h3 {
+  margin: 0;
+}
+
+.operation-form {
+  display: grid;
+  gap: 14px;
+}
+
+.operation-result {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 12px;
+}
+
+.operation-result span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.operation-result pre,
+.audit-detail pre {
+  overflow: auto;
+  max-height: 320px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 0;
+  padding: 12px;
+}
+
+.audit-detail {
+  display: grid;
+  gap: 16px;
+}
+
+.audit-detail dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.audit-detail dl > div {
+  display: grid;
+  gap: 3px;
+}
+
+.audit-detail dt {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.audit-detail dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  margin: 0;
+}
+
+.audit-detail h3 {
+  margin: 0 0 8px;
+}
+
+.drawer-loading {
+  margin: 0;
   color: #64748b;
 }
 
@@ -1983,6 +2098,10 @@ select {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .audit-operations {
+    grid-template-columns: 1fr;
+  }
+
   .profile-layout,
   .roles-layout,
   .media-layout,
@@ -2018,6 +2137,7 @@ select {
   .dashboard,
   .profile-page,
   .roles-page,
+  .audit-page,
   .media-page,
   .settings-page,
   .users-page {

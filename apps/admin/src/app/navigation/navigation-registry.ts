@@ -76,6 +76,14 @@ export const navigationItems: NavigationItem[] = [
     to: "/admin/roles",
   },
   {
+    icon: "shield",
+    label: "Audit",
+    permission: Permission.AUDIT_LOGS_INDEX,
+    section: "system",
+    title: "Audit and recovery",
+    to: "/admin/audit",
+  },
+  {
     icon: "settings",
     label: "Settings",
     permission: Permission.SETTINGS_INDEX,

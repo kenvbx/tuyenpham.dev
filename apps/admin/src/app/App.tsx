@@ -6,6 +6,7 @@ import { PermissionGate } from "./auth/PermissionGate";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 import { ToastProvider } from "./components/ToastProvider";
 import { AdminLayout } from "./layouts/AdminLayout";
+import { AuditPage } from "./pages/AuditPage";
 import { BlogPage } from "./pages/BlogPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -64,6 +65,17 @@ export function App() {
                 element={
                   <PermissionGate fallback={<DashboardPage />} permission={Permission.ROLES_INDEX}>
                     <RolesPage />
+                  </PermissionGate>
+                }
+              />
+              <Route
+                path="audit"
+                element={
+                  <PermissionGate
+                    fallback={<DashboardPage />}
+                    permission={Permission.AUDIT_LOGS_INDEX}
+                  >
+                    <AuditPage />
                   </PermissionGate>
                 }
               />
