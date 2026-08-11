@@ -9,6 +9,7 @@ import { AdminLayout } from "./layouts/AdminLayout";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MediaPage } from "./pages/MediaPage";
+import { PagesPage } from "./pages/PagesPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { RolesPage } from "./pages/RolesPage";
 import { UsersPage } from "./pages/UsersPage";
@@ -28,6 +29,14 @@ export function App() {
                 element={
                   <PermissionGate fallback={<DashboardPage />} permission={Permission.MEDIA_INDEX}>
                     <MediaPage />
+                  </PermissionGate>
+                }
+              />
+              <Route
+                path="pages"
+                element={
+                  <PermissionGate fallback={<DashboardPage />} permission={Permission.PAGES_INDEX}>
+                    <PagesPage />
                   </PermissionGate>
                 }
               />

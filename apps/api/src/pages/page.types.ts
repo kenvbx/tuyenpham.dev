@@ -98,6 +98,12 @@ export type UpdatePageInput = {
   updatedBy?: string | null | undefined;
 };
 
+export type UpdatePageStatusInput = {
+  publishedAt?: string | null | undefined;
+  status: Exclude<PageStatus, "deleted">;
+  updatedBy?: string | null | undefined;
+};
+
 export type ListPagesParams = {
   page: number;
   perPage: number;

@@ -180,6 +180,95 @@ export type MediaUpdateInput = {
   name?: string | undefined;
 };
 
+export type AdminPageStatus = "archived" | "draft" | "published" | "scheduled";
+
+export type AdminPageSlug = {
+  id: string;
+  key: string;
+  locale: string;
+  prefix: string;
+};
+
+export type AdminPageSeoMeta = {
+  canonicalUrl: string | null;
+  id: string;
+  metaDescription: string | null;
+  metaTitle: string | null;
+  nofollow: boolean;
+  noindex: boolean;
+  ogDescription: string | null;
+  ogImageId: string | null;
+  ogImageUrl: string | null;
+  ogTitle: string | null;
+  structuredData: Record<string, unknown>;
+};
+
+export type AdminPageAuthor = {
+  displayName: string | null;
+  email: string;
+  id: string;
+};
+
+export type AdminPageSummary = {
+  authorId: string | null;
+  createdAt: string;
+  deletedAt: string | null;
+  excerpt: string | null;
+  featuredImageId: string | null;
+  id: string;
+  publishedAt: string | null;
+  slug: AdminPageSlug | null;
+  status: AdminPageStatus | "deleted" | string;
+  title: string;
+  updatedAt: string;
+};
+
+export type AdminPageDetail = AdminPageSummary & {
+  author: AdminPageAuthor | null;
+  contentHtml: string | null;
+  contentJson: Record<string, unknown> | null;
+  contentText: string | null;
+  contentVersion: number;
+  seo: AdminPageSeoMeta | null;
+};
+
+export type PageListFilters = {
+  page: number;
+  perPage: number;
+  search?: string | undefined;
+  status?: string | undefined;
+};
+
+export type PageFormInput = {
+  contentHtml?: string | null | undefined;
+  contentText?: string | null | undefined;
+  excerpt?: string | null | undefined;
+  featuredImageId?: string | null | undefined;
+  publishedAt?: string | null | undefined;
+  seo?: {
+    canonicalUrl?: string | null | undefined;
+    metaDescription?: string | null | undefined;
+    metaTitle?: string | null | undefined;
+    nofollow?: boolean | undefined;
+    noindex?: boolean | undefined;
+  };
+  slug?: string | undefined;
+  status?: AdminPageStatus | undefined;
+  title: string;
+};
+
+export type PageStatusInput = {
+  publishedAt?: string | null | undefined;
+  status: AdminPageStatus;
+};
+
+export type PageSlugSuggestion = {
+  available: boolean;
+  changed: boolean;
+  requestedSlug: string;
+  slug: string;
+};
+
 type RequestOptions = {
   body?: unknown;
   method?: "DELETE" | "GET" | "PATCH" | "POST";
@@ -339,6 +428,101 @@ export async function updateMediaFile(token: string, fileId: string, input: Medi
   return response.data;
 }
 
+export async function listPages(token: string, filters: PageListFilters) {
+  const params = new URLSearchParams({
+    page: String(filters.page),
+    perPage: String(filters.perPage),
+  });
+
+  if (filters.search) {
+    params.set("search", filters.search);
+  }
+
+  if (filters.status) {
+    params.set("status", filters.status);
+  }
+
+  return apiRequest<ApiListResponse<AdminPageSummary>>(`/admin/pages?${params.toString()}`, {
+    token,
+  });
+}
+
+export async function getPage(token: string, pageId: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminPageDetail>>(`/admin/pages/${pageId}`, {
+    token,
+  });
+
+  return response.data;
+}
+
+export async function createPage(token: string, input: PageFormInput) {
+  const response = await apiRequest<ApiSuccessResponse<AdminPageDetail>>("/admin/pages", {
+    body: cleanPagePayload(input),
+    method: "POST",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function updatePage(token: string, pageId: string, input: PageFormInput) {
+  const response = await apiRequest<ApiSuccessResponse<AdminPageDetail>>(`/admin/pages/${pageId}`, {
+    body: cleanPagePayload(input),
+    method: "PATCH",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function updatePageStatus(token: string, pageId: string, input: PageStatusInput) {
+  const response = await apiRequest<ApiSuccessResponse<AdminPageDetail>>(
+    `/admin/pages/${pageId}/status`,
+    {
+      body: cleanPagePayload(input),
+      method: "POST",
+      token,
+    },
+  );
+
+  return response.data;
+}
+
+export async function deletePage(token: string, pageId: string) {
+  const response = await apiRequest<ApiSuccessResponse<AdminPageDetail>>(`/admin/pages/${pageId}`, {
+    method: "DELETE",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function suggestPageSlug(
+  token: string,
+  input: { pageId?: string | undefined; slug?: string | undefined; title?: string | undefined },
+) {
+  const params = new URLSearchParams();
+
+  if (input.pageId) {
+    params.set("pageId", input.pageId);
+  }
+
+  if (input.slug) {
+    params.set("slug", input.slug);
+  }
+
+  if (input.title) {
+    params.set("title", input.title);
+  }
+
+  const response = await apiRequest<ApiSuccessResponse<PageSlugSuggestion>>(
+    `/admin/pages/slugs/suggest?${params.toString()}`,
+    { token },
+  );
+
+  return response.data;
+}
+
 export async function listUsers(token: string, filters: UserListFilters) {
   const params = new URLSearchParams({
     page: String(filters.page),
@@ -450,6 +634,23 @@ function cleanRolePayload(input: RoleFormInput) {
 function cleanMediaPayload(input: MediaUpdateInput) {
   return Object.fromEntries(
     Object.entries(input).filter(([, value]) => value !== "" && value !== undefined),
+  );
+}
+
+function cleanPagePayload(input: PageFormInput | PageStatusInput) {
+  return Object.fromEntries(
+    Object.entries(input)
+      .filter(([, value]) => value !== "" && value !== undefined)
+      .map(([key, value]) => {
+        if (key !== "seo" || typeof value !== "object" || value === null) {
+          return [key, value];
+        }
+
+        return [
+          key,
+          Object.fromEntries(Object.entries(value).filter(([, nestedValue]) => nestedValue !== "")),
+        ];
+      }),
   );
 }
 

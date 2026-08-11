@@ -48,6 +48,10 @@ const pageBodySchema = z.object({
   title: z.string().trim().min(1).max(255),
 });
 const updatePageBodySchema = pageBodySchema.partial();
+const updatePageStatusBodySchema = z.object({
+  publishedAt: z.iso.datetime().nullable().optional(),
+  status: writablePageStatusSchema,
+});
 const pageParamsSchema = z.object({
   pageId: z.string().uuid(),
 });
@@ -186,6 +190,38 @@ export function createPageRouter(options: PageRouterOptions = {}): ExpressRouter
           entityType: "page",
           ipAddress: request.ip,
           metadata: { slug: page.slug?.key, status: page.status, title: page.title },
+          requestId: request.header("x-request-id") ?? null,
+          userAgent: request.header("user-agent") ?? null,
+        });
+
+        response.json(createApiSuccessResponse(page));
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.post(
+    "/:pageId/status",
+    requireAuth(auth),
+    requirePermission(Permission.PAGES_PUBLISH, permissions),
+    async (request, response, next) => {
+      try {
+        const params = pageParamsSchema.parse(request.params);
+        const body = updatePageStatusBodySchema.parse(request.body);
+        const page = await pages.updatePageStatus(params.pageId, {
+          ...body,
+          updatedBy: request.auth?.user.id ?? null,
+        });
+
+        await audit.log({
+          action: "pages.status.update",
+          actorId: request.auth?.user.id ?? null,
+          afterData: body,
+          entityId: page.id,
+          entityType: "page",
+          ipAddress: request.ip,
+          metadata: { publishedAt: page.publishedAt, status: page.status, title: page.title },
           requestId: request.header("x-request-id") ?? null,
           userAgent: request.header("user-agent") ?? null,
         });

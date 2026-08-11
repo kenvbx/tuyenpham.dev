@@ -14,6 +14,8 @@ import type {
   PageSlug,
   PageSlugSuggestion,
   PageSummary,
+  PageStatus,
+  UpdatePageStatusInput,
   UpdatePageInput,
 } from "./page.types.js";
 
@@ -171,6 +173,10 @@ export class PageService {
   }
 
   async createPage(input: CreatePageInput): Promise<PageDetail> {
+    const statusPatch = resolveStatusPatch({
+      publishedAt: input.publishedAt,
+      status: input.status ?? "draft",
+    });
     const result = await this.from("pages")
       .insert({
         author_id: input.authorId ?? null,
@@ -179,8 +185,7 @@ export class PageService {
         content_text: input.contentText ?? null,
         excerpt: input.excerpt ?? null,
         featured_image_id: input.featuredImageId ?? null,
-        published_at: input.publishedAt ?? null,
-        status: input.status ?? "draft",
+        ...statusPatch,
         title: input.title,
       })
       .select(PAGE_SELECT)
@@ -217,7 +222,15 @@ export class PageService {
   }
 
   async updatePage(pageId: string, input: UpdatePageInput): Promise<PageDetail> {
-    await this.loadPageById(pageId);
+    const existingPage = await this.loadPageById(pageId);
+    const statusPatch =
+      input.status !== undefined || input.publishedAt !== undefined
+        ? resolveStatusPatch({
+            currentPublishedAt: existingPage.published_at,
+            publishedAt: input.publishedAt,
+            status: input.status ?? (existingPage.status as PageStatus),
+          })
+        : {};
 
     const patch = {
       ...(input.contentHtml !== undefined ? { content_html: input.contentHtml } : {}),
@@ -225,8 +238,7 @@ export class PageService {
       ...(input.contentText !== undefined ? { content_text: input.contentText } : {}),
       ...(input.excerpt !== undefined ? { excerpt: input.excerpt } : {}),
       ...(input.featuredImageId !== undefined ? { featured_image_id: input.featuredImageId } : {}),
-      ...(input.publishedAt !== undefined ? { published_at: input.publishedAt } : {}),
-      ...(input.status !== undefined ? { status: input.status } : {}),
+      ...statusPatch,
       ...(input.title !== undefined ? { title: input.title } : {}),
     };
 
@@ -248,6 +260,29 @@ export class PageService {
 
     if (input.seo !== undefined) {
       await this.upsertSeo(pageId, input.seo, input.updatedBy ?? null);
+    }
+
+    return this.getPage(pageId);
+  }
+
+  async updatePageStatus(pageId: string, input: UpdatePageStatusInput): Promise<PageDetail> {
+    const existingPage = await this.loadPageById(pageId);
+    const result = await this.from("pages")
+      .update(
+        resolveStatusPatch({
+          currentPublishedAt: existingPage.published_at,
+          publishedAt: input.publishedAt,
+          status: input.status,
+        }),
+      )
+      .eq("id", pageId);
+
+    if (result.error) {
+      throw new HttpError("Unable to update page status.", {
+        code: "page_status_update_failed",
+        details: { cause: result.error.message },
+        statusCode: 500,
+      });
     }
 
     return this.getPage(pageId);
@@ -571,4 +606,43 @@ function toAuthor(row: AuthorRow): PageAuthor {
 
 function escapeSearch(value: string): string {
   return value.replaceAll("%", "\\%").replaceAll("_", "\\_");
+}
+
+function resolveStatusPatch(input: {
+  currentPublishedAt?: string | null | undefined;
+  publishedAt?: string | null | undefined;
+  status: PageStatus;
+}) {
+  if (input.status === "deleted") {
+    throw new HttpError("Deleted status is managed by the delete workflow.", {
+      code: "page_status_invalid",
+      statusCode: 422,
+    });
+  }
+
+  if (input.status === "published") {
+    return {
+      published_at: input.publishedAt ?? input.currentPublishedAt ?? new Date().toISOString(),
+      status: "published",
+    };
+  }
+
+  if (input.status === "scheduled") {
+    if (!input.publishedAt && !input.currentPublishedAt) {
+      throw new HttpError("Scheduled pages require a publish date.", {
+        code: "page_schedule_date_required",
+        statusCode: 422,
+      });
+    }
+
+    return {
+      published_at: input.publishedAt ?? input.currentPublishedAt,
+      status: "scheduled",
+    };
+  }
+
+  return {
+    ...(input.publishedAt !== undefined ? { published_at: input.publishedAt } : {}),
+    status: input.status,
+  };
 }

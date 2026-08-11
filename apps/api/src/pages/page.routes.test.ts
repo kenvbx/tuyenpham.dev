@@ -235,6 +235,36 @@ describe("page routes", () => {
     });
   });
 
+  it("updates page status through the publish workflow", async () => {
+    const pages = {
+      updatePageStatus: vi.fn(async () => ({
+        ...pageResponse(),
+        publishedAt: "2026-08-11T01:00:00.000Z",
+        status: "published",
+      })),
+    } as unknown as PageService;
+    const { app, audit } = createTestHarness(pages);
+
+    const response = await request(app)
+      .post(`/admin/pages/${pageId}/status`)
+      .set("Authorization", "Bearer token")
+      .send({ status: "published" })
+      .expect(200);
+
+    expect(response.body.data.status).toBe("published");
+    expect(pages.updatePageStatus).toHaveBeenCalledWith(pageId, {
+      status: "published",
+      updatedBy: user.id,
+    });
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "pages.status.update",
+        actorId: user.id,
+        entityId: pageId,
+      }),
+    );
+  });
+
   it("soft deletes pages", async () => {
     const pages = {
       deletePage: vi.fn(async () => ({
