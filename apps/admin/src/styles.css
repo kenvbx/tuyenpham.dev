@@ -545,6 +545,7 @@ select {
 .modules-page,
 .pages-page,
 .settings-page,
+.themes-page,
 .users-page {
   display: grid;
   gap: 18px;
@@ -633,6 +634,7 @@ select {
 .media-layout,
 .pages-layout,
 .settings-layout,
+.themes-layout,
 .users-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
@@ -642,6 +644,10 @@ select {
 
 .settings-layout {
   grid-template-columns: 220px minmax(0, 1fr);
+}
+
+.themes-layout {
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
 }
 
 .modules-layout {
@@ -720,6 +726,139 @@ select {
 
 .settings-panel {
   overflow: hidden;
+}
+
+.theme-list {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.theme-list button {
+  display: grid;
+  min-height: 86px;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+  padding: 14px;
+  text-align: left;
+}
+
+.theme-list button:hover,
+.theme-list button.is-active {
+  border-color: #1f6feb;
+  box-shadow: 0 0 0 3px rgb(31 111 235 / 12%);
+}
+
+.theme-list strong,
+.theme-list small {
+  display: block;
+  min-width: 0;
+}
+
+.theme-list small {
+  margin-top: 4px;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.theme-swatch {
+  width: 54px;
+  height: 54px;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, var(--theme-primary) 0 50%, transparent 50%),
+    linear-gradient(45deg, var(--theme-accent) 0 50%, var(--theme-surface) 50%),
+    var(--theme-background);
+}
+
+.theme-editor {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+  padding: 18px;
+}
+
+.theme-editor > header p,
+.theme-editor > header h3 {
+  margin: 0;
+}
+
+.theme-editor > header p {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.theme-editor > header h3 {
+  margin-top: 4px;
+  letter-spacing: 0;
+}
+
+.theme-preview {
+  display: grid;
+  min-height: 220px;
+  gap: 18px;
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  background: var(--theme-background);
+  color: var(--theme-foreground);
+  padding: 18px;
+}
+
+.theme-preview > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-preview > div:first-child span {
+  display: block;
+  width: 58px;
+  height: 12px;
+  border: 1px solid color-mix(in srgb, var(--theme-muted), transparent 60%);
+  border-radius: 999px;
+  background: var(--theme-surface);
+}
+
+.theme-preview > div:first-child span:first-child {
+  width: 84px;
+  border-color: var(--theme-primary);
+  background: var(--theme-primary);
+}
+
+.theme-preview section {
+  display: grid;
+  align-self: end;
+  max-width: 520px;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--theme-muted), transparent 55%);
+  border-radius: 8px;
+  background: var(--theme-surface);
+  padding: 16px;
+}
+
+.theme-preview strong {
+  color: var(--theme-primary);
+  font-size: 18px;
+}
+
+.theme-preview p {
+  margin: 0;
+  color: var(--theme-muted);
+  line-height: 1.55;
+}
+
+.theme-options,
+.theme-palette-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .settings-panel > header {
@@ -2161,6 +2300,7 @@ select {
   .roles-layout,
   .media-layout,
   .settings-layout,
+  .themes-layout,
   .users-layout {
     grid-template-columns: 1fr;
   }
@@ -2196,11 +2336,17 @@ select {
   .media-page,
   .modules-page,
   .settings-page,
+  .themes-page,
   .users-page {
     padding: 18px;
   }
 
   .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .theme-options,
+  .theme-palette-grid {
     grid-template-columns: 1fr;
   }
 

@@ -17,6 +17,7 @@ import { PagesPage } from "./pages/PagesPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { RolesPage } from "./pages/RolesPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { ThemesPage } from "./pages/ThemesPage";
 import { UsersPage } from "./pages/UsersPage";
 
 export function App() {
@@ -99,6 +100,17 @@ export function App() {
                     permission={Permission.SETTINGS_INDEX}
                   >
                     <SettingsPage />
+                  </PermissionGate>
+                }
+              />
+              <Route
+                path="themes"
+                element={
+                  <PermissionGate
+                    fallback={<DashboardPage />}
+                    permission={Permission.CORE_APPEARANCE}
+                  >
+                    <ThemesPage />
                   </PermissionGate>
                 }
               />

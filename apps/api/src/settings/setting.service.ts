@@ -59,6 +59,11 @@ const PUBLIC_SETTING_KEYS = new Set([
   "site.timezone",
   "social-login.github-enabled",
   "social-login.google-enabled",
+  "theme.active-theme",
+  "theme.custom-css",
+  "theme.custom-js",
+  "theme.layout",
+  "theme.palette",
 ]);
 
 export class SettingService {

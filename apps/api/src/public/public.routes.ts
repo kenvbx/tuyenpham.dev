@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createPublicAnalyticsRouter } from "../analytics/analytics.routes.js";
 import { createPublicContactRouter } from "../contacts/public-contact.routes.js";
 import { createPublicMemberRouter } from "../members/public-member.routes.js";
+import { themeService, type ThemeService } from "../themes/theme.service.js";
 import { publicCache, type PublicCache } from "./public-cache.js";
 import { publicContentService, type PublicContentService } from "./public-content.service.js";
 import { publicResolverService, type PublicResolverService } from "./public-resolver.service.js";
@@ -69,6 +70,7 @@ export type PublicRouterOptions = {
   cache?: PublicCache;
   content?: PublicContentService;
   resolver?: PublicResolverService;
+  themes?: ThemeService;
 };
 
 export function createPublicRouter(options: PublicRouterOptions = {}): ExpressRouter {
@@ -76,6 +78,7 @@ export function createPublicRouter(options: PublicRouterOptions = {}): ExpressRo
   const cache = options.cache ?? publicCache;
   const content = options.content ?? publicContentService;
   const resolver = options.resolver ?? publicResolverService;
+  const themes = options.themes ?? themeService;
 
   router.use("/analytics", createPublicAnalyticsRouter());
   router.use("/contact", createPublicContactRouter());
@@ -186,6 +189,16 @@ export function createPublicRouter(options: PublicRouterOptions = {}): ExpressRo
       );
 
       response.json(createApiSuccessResponse(settings));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get("/theme", async (_request, response, next) => {
+    try {
+      const theme = await cache.getOrSet("theme:active", () => themes.getConfig());
+
+      response.json(createApiSuccessResponse(theme));
     } catch (error) {
       next(error);
     }

@@ -15,6 +15,7 @@ const categoryId = "10000000-0000-4000-8000-000000000507";
 function createTestHarness(options: {
   content?: PublicContentService;
   resolver?: PublicResolverService;
+  themes?: Parameters<typeof createPublicRouter>[0]["themes"];
 }) {
   const app = express();
 
@@ -367,6 +368,51 @@ describe("public routes", () => {
 
     expect(response.body.data).toEqual({ site: { name: "Tuyen Pham" } });
     expect(content.getPublicSettings).toHaveBeenCalledWith("site");
+  });
+
+  it("returns public theme config", async () => {
+    const themes = {
+      getConfig: vi.fn(async () => ({
+        activeTheme: {
+          author: "CMS",
+          description: "Public theme",
+          features: ["Pages"],
+          id: "standard",
+          layout: { contentWidth: "normal", header: "classic", radius: "sm" },
+          name: "Standard",
+          palette: {
+            accent: "#f59e0b",
+            background: "#f8fafc",
+            foreground: "#111827",
+            muted: "#64748b",
+            primary: "#2563eb",
+            surface: "#ffffff",
+          },
+          previewImage: null,
+          version: "1.0.0",
+        },
+        availableThemes: [],
+        settings: {
+          activeTheme: "standard",
+          customCss: "",
+          customJs: "",
+          layout: { contentWidth: "normal", header: "classic", radius: "sm" },
+          palette: {
+            accent: "#f59e0b",
+            background: "#f8fafc",
+            foreground: "#111827",
+            muted: "#64748b",
+            primary: "#2563eb",
+            surface: "#ffffff",
+          },
+        },
+      })),
+    } as Parameters<typeof createPublicRouter>[0]["themes"];
+
+    const response = await request(createTestHarness({ themes })).get("/public/theme").expect(200);
+
+    expect(response.body.data.settings.activeTheme).toBe("standard");
+    expect(themes?.getConfig).toHaveBeenCalledWith();
   });
 
   it("returns sitemap XML", async () => {

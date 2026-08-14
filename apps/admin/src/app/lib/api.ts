@@ -499,6 +499,55 @@ export type SettingsUpdateInput = {
   values: Record<string, SettingValue>;
 };
 
+export type ThemePalette = {
+  accent: string;
+  background: string;
+  foreground: string;
+  muted: string;
+  primary: string;
+  surface: string;
+};
+
+export type ThemeLayout = {
+  contentWidth: "compact" | "normal" | "wide";
+  header: "centered" | "classic" | "minimal";
+  radius: "none" | "sm" | "md";
+};
+
+export type ThemeDefinition = {
+  author: string;
+  description: string;
+  features: string[];
+  id: string;
+  layout: ThemeLayout;
+  name: string;
+  palette: ThemePalette;
+  previewImage: string | null;
+  version: string;
+};
+
+export type ThemeSettings = {
+  activeTheme: string;
+  customCss: string;
+  customJs: string;
+  layout: ThemeLayout;
+  palette: ThemePalette;
+};
+
+export type ThemeConfig = {
+  activeTheme: ThemeDefinition;
+  availableThemes: ThemeDefinition[];
+  settings: ThemeSettings;
+};
+
+export type ThemeUpdateInput = {
+  activeTheme?: string | undefined;
+  customCss?: string | undefined;
+  customJs?: string | undefined;
+  layout?: Partial<ThemeLayout> | undefined;
+  palette?: Partial<ThemePalette> | undefined;
+};
+
 export type AuditLogEntry = {
   action: string;
   actorId: string | null;
@@ -755,6 +804,22 @@ export async function clearSettingsCache(token: string) {
       token,
     },
   );
+
+  return response.data;
+}
+
+export async function getThemeConfig(token: string) {
+  const response = await apiRequest<ApiSuccessResponse<ThemeConfig>>("/admin/themes", { token });
+
+  return response.data;
+}
+
+export async function updateThemeConfig(token: string, input: ThemeUpdateInput) {
+  const response = await apiRequest<ApiSuccessResponse<ThemeConfig>>("/admin/themes", {
+    body: input,
+    method: "PATCH",
+    token,
+  });
 
   return response.data;
 }

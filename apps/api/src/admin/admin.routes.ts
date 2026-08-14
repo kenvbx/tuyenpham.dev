@@ -26,6 +26,7 @@ import { createRoleRouter, type RoleRouterOptions } from "../roles/role.routes.j
 import { createSettingRouter, type SettingRouterOptions } from "../settings/setting.routes.js";
 import { createSystemRouter, type SystemRouterOptions } from "../system/system.routes.js";
 import { createTagRouter, type TagRouterOptions } from "../tags/tag.routes.js";
+import { createThemeRouter, type ThemeRouterOptions } from "../themes/theme.routes.js";
 import { createUserRouter, type UserRouterOptions } from "../users/user.routes.js";
 
 export type AdminRouterOptions = {
@@ -46,6 +47,7 @@ export type AdminRouterOptions = {
   settings?: SettingRouterOptions;
   system?: SystemRouterOptions;
   tags?: TagRouterOptions;
+  themes?: ThemeRouterOptions;
   users?: UserRouterOptions;
 };
 
@@ -69,6 +71,7 @@ export function createAdminRouter(options: AdminRouterOptions = {}): ExpressRout
   router.use("/settings", createSettingRouter(options.settings));
   router.use("/system", createSystemRouter(options.system));
   router.use("/tags", createTagRouter(options.tags));
+  router.use("/themes", createThemeRouter(options.themes));
   router.use("/users", createUserRouter(options.users));
 
   return router;

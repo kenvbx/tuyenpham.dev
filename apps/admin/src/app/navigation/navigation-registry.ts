@@ -60,6 +60,14 @@ export const navigationItems: NavigationItem[] = [
     to: "/admin/menus",
   },
   {
+    icon: "palette",
+    label: "Themes",
+    permission: Permission.CORE_APPEARANCE,
+    section: "content",
+    title: "Themes",
+    to: "/admin/themes",
+  },
+  {
     icon: "settings",
     label: "Modules",
     permission: Permission.GALLERIES_INDEX,
