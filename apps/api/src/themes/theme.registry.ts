@@ -17,21 +17,26 @@ export const defaultThemeLayout: ThemeLayout = {
 
 export const themeRegistry: ThemeDefinition[] = [
   {
+    assetBaseUrl: null,
     author: "Tuyen Pham CMS",
     description: "Balanced editorial layout for pages, posts, menus and media-rich sections.",
     features: ["Page builder ready", "Blog archive", "Header and footer menus", "SEO metadata"],
     id: "standard",
+    installedAt: null,
     layout: defaultThemeLayout,
     name: "Standard",
     palette: defaultThemePalette,
     previewImage: null,
+    source: "builtin",
     version: "1.0.0",
   },
   {
+    assetBaseUrl: null,
     author: "Tuyen Pham CMS",
     description: "Quiet professional preset for portfolio, services and personal brand websites.",
     features: ["Compact header", "Portfolio sections", "Contact-ready layout", "High contrast"],
     id: "studio",
+    installedAt: null,
     layout: {
       contentWidth: "wide",
       header: "minimal",
@@ -47,13 +52,16 @@ export const themeRegistry: ThemeDefinition[] = [
       surface: "#ffffff",
     },
     previewImage: null,
+    source: "builtin",
     version: "1.0.0",
   },
   {
+    assetBaseUrl: null,
     author: "Tuyen Pham CMS",
     description: "Content-first preset for documentation, news and long-form publishing.",
     features: ["Readable article width", "Category navigation", "Soft surfaces", "Archive pages"],
     id: "journal",
+    installedAt: null,
     layout: {
       contentWidth: "compact",
       header: "centered",
@@ -69,6 +77,7 @@ export const themeRegistry: ThemeDefinition[] = [
       surface: "#ffffff",
     },
     previewImage: null,
+    source: "builtin",
     version: "1.0.0",
   },
 ];

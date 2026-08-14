@@ -1,5 +1,6 @@
 import { createApiSuccessResponse, Permission } from "@cms/shared";
 import { Router, type Router as ExpressRouter } from "express";
+import multer from "multer";
 import { z } from "zod";
 
 import { auditService, type AuditService } from "../audit/audit.service.js";
@@ -39,6 +40,19 @@ const themeUpdateBodySchema = z.object({
       surface: colorSchema.optional(),
     })
     .optional(),
+});
+const themeParamsSchema = z.object({
+  themeId: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u),
+});
+const upload = multer({
+  limits: {
+    fileSize: 25 * 1024 * 1024,
+    files: 1,
+  },
+  storage: multer.memoryStorage(),
 });
 
 export type ThemeRouterOptions = {
@@ -115,6 +129,120 @@ export function createThemeRouter(options: ThemeRouterOptions = {}): ExpressRout
           entityType: "theme",
           ipAddress: request.ip,
           metadata: { activeTheme: result.after.settings.activeTheme },
+          requestId: request.header("x-request-id") ?? null,
+          userAgent: request.header("user-agent") ?? null,
+        });
+
+        response.json(createApiSuccessResponse(result.after));
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.post(
+    "/install",
+    requireAuth(auth),
+    requirePermission(Permission.CORE_APPEARANCE, permissions),
+    (request, response, next) => {
+      upload.single("file")(request, response, (error) => {
+        if (error) {
+          next(error);
+          return;
+        }
+
+        next();
+      });
+    },
+    async (request, response, next) => {
+      try {
+        if (!request.file) {
+          response.status(400).json({
+            error: {
+              code: "theme_package_required",
+              message: "Theme package file is required.",
+            },
+          });
+          return;
+        }
+
+        const result = await themes.installTheme({
+          buffer: request.file.buffer,
+          originalName: request.file.originalname,
+          uploadedBy: request.auth?.user.id ?? null,
+        });
+
+        await audit.log({
+          action: "themes.install",
+          actorId: request.auth?.user.id ?? null,
+          afterData: result.installedTheme,
+          beforeData: result.before,
+          entityId: result.installedTheme.id,
+          entityType: "theme",
+          ipAddress: request.ip,
+          metadata: {
+            name: result.installedTheme.name,
+            source: result.installedTheme.source,
+            version: result.installedTheme.version,
+          },
+          requestId: request.header("x-request-id") ?? null,
+          userAgent: request.header("user-agent") ?? null,
+        });
+
+        response.status(201).json(createApiSuccessResponse(result.after));
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.post(
+    "/:themeId/activate",
+    requireAuth(auth),
+    requirePermission(Permission.CORE_APPEARANCE, permissions),
+    async (request, response, next) => {
+      try {
+        const params = themeParamsSchema.parse(request.params);
+        const result = await themes.activateTheme(params.themeId, request.auth?.user.id ?? null);
+
+        await audit.log({
+          action: "themes.activate",
+          actorId: request.auth?.user.id ?? null,
+          afterData: result.after,
+          beforeData: result.before,
+          entityId: params.themeId,
+          entityType: "theme",
+          ipAddress: request.ip,
+          metadata: { activeTheme: result.after.settings.activeTheme },
+          requestId: request.header("x-request-id") ?? null,
+          userAgent: request.header("user-agent") ?? null,
+        });
+
+        response.json(createApiSuccessResponse(result.after));
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.delete(
+    "/:themeId",
+    requireAuth(auth),
+    requirePermission(Permission.CORE_APPEARANCE, permissions),
+    async (request, response, next) => {
+      try {
+        const params = themeParamsSchema.parse(request.params);
+        const result = await themes.deleteTheme(params.themeId, request.auth?.user.id ?? null);
+
+        await audit.log({
+          action: "themes.delete",
+          actorId: request.auth?.user.id ?? null,
+          afterData: result.after,
+          beforeData: result.before,
+          entityId: params.themeId,
+          entityType: "theme",
+          ipAddress: request.ip,
+          metadata: { deletedTheme: result.deletedTheme.name },
           requestId: request.header("x-request-id") ?? null,
           userAgent: request.header("user-agent") ?? null,
         });

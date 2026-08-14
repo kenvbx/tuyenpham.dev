@@ -36,3 +36,4 @@ outputs/
 outputs/**/~$*
 outputs/**/*.png
 outputs/**/*.inspect.ndjson
+storage/

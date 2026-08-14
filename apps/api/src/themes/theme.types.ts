@@ -16,14 +16,17 @@ export type ThemeLayout = {
 };
 
 export type ThemeDefinition = {
+  assetBaseUrl: string | null;
   author: string;
   description: string;
   features: string[];
   id: string;
+  installedAt: string | null;
   layout: ThemeLayout;
   name: string;
   palette: ThemePalette;
   previewImage: string | null;
+  source: "builtin" | "uploaded";
   version: string;
 };
 
@@ -37,8 +40,14 @@ export type ThemeSettings = {
 
 export type ThemeConfig = {
   activeTheme: ThemeDefinition;
-  availableThemes: ThemeDefinition[];
+  installedThemes: ThemeDefinition[];
   settings: ThemeSettings;
+};
+
+export type ThemeInstallInput = {
+  buffer: Buffer;
+  originalName: string;
+  uploadedBy?: string | null | undefined;
 };
 
 export type ThemeUpdateInput = {

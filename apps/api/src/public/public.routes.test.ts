@@ -374,10 +374,12 @@ describe("public routes", () => {
     const themes = {
       getConfig: vi.fn(async () => ({
         activeTheme: {
+          assetBaseUrl: null,
           author: "CMS",
           description: "Public theme",
           features: ["Pages"],
           id: "standard",
+          installedAt: null,
           layout: { contentWidth: "normal", header: "classic", radius: "sm" },
           name: "Standard",
           palette: {
@@ -389,9 +391,10 @@ describe("public routes", () => {
             surface: "#ffffff",
           },
           previewImage: null,
+          source: "builtin",
           version: "1.0.0",
         },
-        availableThemes: [],
+        installedThemes: [],
         settings: {
           activeTheme: "standard",
           customCss: "",
@@ -407,6 +410,7 @@ describe("public routes", () => {
           },
         },
       })),
+      getStoragePath: vi.fn(() => "/tmp/cms-themes-test"),
     } as Parameters<typeof createPublicRouter>[0]["themes"];
 
     const response = await request(createTestHarness({ themes })).get("/public/theme").expect(200);

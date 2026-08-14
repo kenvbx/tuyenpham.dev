@@ -38,10 +38,12 @@ const context: PermissionContext = {
 function createConfig(themeId = "standard") {
   return {
     activeTheme: {
+      assetBaseUrl: null,
       author: "CMS",
       description: "Standard theme",
       features: ["Pages"],
       id: themeId,
+      installedAt: null,
       layout: { contentWidth: "normal", header: "classic", radius: "sm" },
       name: "Standard",
       palette: {
@@ -53,9 +55,10 @@ function createConfig(themeId = "standard") {
         surface: "#ffffff",
       },
       previewImage: null,
+      source: "builtin",
       version: "1.0.0",
     },
-    availableThemes: [],
+    installedThemes: [],
     settings: {
       activeTheme: themeId,
       customCss: "",
@@ -138,6 +141,88 @@ describe("theme routes", () => {
         entityType: "theme",
         metadata: { activeTheme: "studio" },
       }),
+    );
+  });
+
+  it("installs theme packages and audits the action", async () => {
+    const themes = {
+      installTheme: vi.fn(async () => ({
+        after: createConfig("portfolio"),
+        before: createConfig("standard"),
+        installedTheme: {
+          ...createConfig("portfolio").activeTheme,
+          id: "portfolio",
+          name: "Portfolio",
+          source: "uploaded",
+        },
+      })),
+    } as unknown as ThemeService;
+    const { app, audit } = createTestHarness(themes);
+
+    const response = await request(app)
+      .post("/admin/themes/install")
+      .set("Authorization", "Bearer token")
+      .attach("file", Buffer.from("zip"), "portfolio.zip")
+      .expect(201);
+
+    expect(response.body.data.settings.activeTheme).toBe("portfolio");
+    expect(themes.installTheme).toHaveBeenCalledWith({
+      buffer: Buffer.from("zip"),
+      originalName: "portfolio.zip",
+      uploadedBy: user.id,
+    });
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "themes.install",
+        entityId: "portfolio",
+        entityType: "theme",
+      }),
+    );
+  });
+
+  it("activates installed themes", async () => {
+    const themes = {
+      activateTheme: vi.fn(async () => ({
+        after: createConfig("portfolio"),
+        before: createConfig("standard"),
+      })),
+    } as unknown as ThemeService;
+    const { app, audit } = createTestHarness(themes);
+
+    await request(app)
+      .post("/admin/themes/portfolio/activate")
+      .set("Authorization", "Bearer token")
+      .expect(200);
+
+    expect(themes.activateTheme).toHaveBeenCalledWith("portfolio", user.id);
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "themes.activate", entityId: "portfolio" }),
+    );
+  });
+
+  it("deletes uploaded themes", async () => {
+    const themes = {
+      deleteTheme: vi.fn(async () => ({
+        after: createConfig("standard"),
+        before: createConfig("portfolio"),
+        deletedTheme: {
+          ...createConfig("portfolio").activeTheme,
+          id: "portfolio",
+          name: "Portfolio",
+          source: "uploaded",
+        },
+      })),
+    } as unknown as ThemeService;
+    const { app, audit } = createTestHarness(themes);
+
+    await request(app)
+      .delete("/admin/themes/portfolio")
+      .set("Authorization", "Bearer token")
+      .expect(200);
+
+    expect(themes.deleteTheme).toHaveBeenCalledWith("portfolio", user.id);
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "themes.delete", entityId: "portfolio" }),
     );
   });
 });

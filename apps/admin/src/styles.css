@@ -785,6 +785,22 @@ select {
   padding: 18px;
 }
 
+.theme-editor-form {
+  min-width: 0;
+}
+
+.theme-install-panel {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.theme-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .theme-editor > header p,
 .theme-editor > header h3 {
   margin: 0;

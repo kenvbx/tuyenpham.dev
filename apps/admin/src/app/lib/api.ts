@@ -515,14 +515,17 @@ export type ThemeLayout = {
 };
 
 export type ThemeDefinition = {
+  assetBaseUrl: string | null;
   author: string;
   description: string;
   features: string[];
   id: string;
+  installedAt: string | null;
   layout: ThemeLayout;
   name: string;
   palette: ThemePalette;
   previewImage: string | null;
+  source: "builtin" | "uploaded";
   version: string;
 };
 
@@ -536,7 +539,7 @@ export type ThemeSettings = {
 
 export type ThemeConfig = {
   activeTheme: ThemeDefinition;
-  availableThemes: ThemeDefinition[];
+  installedThemes: ThemeDefinition[];
   settings: ThemeSettings;
 };
 
@@ -694,7 +697,7 @@ export async function apiRequest<TData>(
 ): Promise<TData> {
   const headers = new Headers({ Accept: "application/json" });
 
-  if (options.body !== undefined) {
+  if (options.body !== undefined && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -708,7 +711,8 @@ export async function apiRequest<TData>(
   };
 
   if (options.body !== undefined) {
-    requestInit.body = JSON.stringify(options.body);
+    requestInit.body =
+      options.body instanceof FormData ? options.body : JSON.stringify(options.body);
   }
 
   const response = await fetch(`${adminEnv.apiUrl}${path}`, requestInit);
@@ -818,6 +822,40 @@ export async function updateThemeConfig(token: string, input: ThemeUpdateInput) 
   const response = await apiRequest<ApiSuccessResponse<ThemeConfig>>("/admin/themes", {
     body: input,
     method: "PATCH",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function installTheme(token: string, file: File) {
+  const body = new FormData();
+  body.append("file", file);
+
+  const response = await apiRequest<ApiSuccessResponse<ThemeConfig>>("/admin/themes/install", {
+    body,
+    method: "POST",
+    token,
+  });
+
+  return response.data;
+}
+
+export async function activateTheme(token: string, themeId: string) {
+  const response = await apiRequest<ApiSuccessResponse<ThemeConfig>>(
+    `/admin/themes/${themeId}/activate`,
+    {
+      method: "POST",
+      token,
+    },
+  );
+
+  return response.data;
+}
+
+export async function deleteTheme(token: string, themeId: string) {
+  const response = await apiRequest<ApiSuccessResponse<ThemeConfig>>(`/admin/themes/${themeId}`, {
+    method: "DELETE",
     token,
   });
 

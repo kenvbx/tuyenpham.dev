@@ -1,5 +1,5 @@
 import { createApiListResponse, createApiSuccessResponse } from "@cms/shared";
-import { Router, type Router as ExpressRouter } from "express";
+import express, { Router, type Router as ExpressRouter } from "express";
 import { z } from "zod";
 
 import { createPublicAnalyticsRouter } from "../analytics/analytics.routes.js";
@@ -83,6 +83,14 @@ export function createPublicRouter(options: PublicRouterOptions = {}): ExpressRo
   router.use("/analytics", createPublicAnalyticsRouter());
   router.use("/contact", createPublicContactRouter());
   router.use("/members", createPublicMemberRouter());
+  router.use(
+    "/themes",
+    express.static(themes.getStoragePath(), {
+      fallthrough: true,
+      index: false,
+      maxAge: "1h",
+    }),
+  );
 
   router.get("/resolve", async (request, response, next) => {
     try {

@@ -24,6 +24,7 @@ export function createApp(): Express {
   app.use("/public/contact", createRateLimit("publicWrite"));
   app.use("/public/members/register", createRateLimit("publicWrite"));
   app.use("/admin/media/upload", createRateLimit("upload"));
+  app.use("/admin/themes/install", createRateLimit("upload"));
   app.use("/admin", (request, response, next) => {
     response.on("finish", () => {
       if (request.method !== "GET" && response.statusCode < 400) {
