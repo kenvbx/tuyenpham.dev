@@ -1516,6 +1516,7 @@ select {
 }
 
 .row-actions button,
+.row-action-link,
 .pagination button {
   display: inline-grid;
   width: 34px;
@@ -1526,6 +1527,11 @@ select {
   background: #ffffff;
   color: #334155;
   cursor: pointer;
+}
+
+.row-action-link:hover {
+  border-color: #94a3b8;
+  color: #1f6feb;
 }
 
 .pagination {
@@ -1788,6 +1794,126 @@ select {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
   margin-top: 18px;
+}
+
+.post-editor-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
+  gap: 18px;
+  align-items: start;
+}
+
+.post-editor-main,
+.post-editor-sidebar {
+  display: grid;
+  gap: 18px;
+}
+
+.post-editor-sidebar {
+  position: sticky;
+  top: 18px;
+}
+
+.post-editor-card,
+.post-editor-panel {
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.post-editor-card {
+  display: grid;
+  gap: 18px;
+  padding: 18px;
+}
+
+.post-editor-card label,
+.post-editor-panel label {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  color: #334155;
+  font-size: 14px;
+}
+
+.post-title-field .cms-input {
+  min-height: 58px;
+  border-color: #cbd5e1;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.25;
+  padding: 10px 14px;
+}
+
+.slug-field small,
+.panel-note,
+.compact-choice-list small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.content-editor-field > span,
+.post-title-field > span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.wordpress-editor {
+  min-width: 0;
+}
+
+.wordpress-editor .ck.ck-editor {
+  width: 100%;
+}
+
+.wordpress-editor .ck.ck-toolbar {
+  border-color: #cbd5e1;
+  border-radius: 8px 8px 0 0;
+}
+
+.wordpress-editor .ck.ck-editor__main > .ck-editor__editable {
+  min-height: 520px;
+  border-color: #cbd5e1;
+  border-radius: 0 0 8px 8px;
+  color: #172033;
+  font-size: 16px;
+  line-height: 1.7;
+  padding: 24px;
+}
+
+.post-editor-panel {
+  overflow: hidden;
+}
+
+.post-editor-panel h3 {
+  margin: 0;
+  border-bottom: 1px solid #e2e8f0;
+  color: #172033;
+  font-size: 15px;
+  padding: 14px 16px;
+}
+
+.post-editor-panel > div {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.post-editor-panel textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.featured-image-field {
+  display: grid;
+  gap: 10px;
+}
+
+.compact-choice-list {
+  max-height: 220px;
+  overflow: auto;
 }
 
 .taxonomy-manager {
@@ -2315,10 +2441,15 @@ select {
   .profile-layout,
   .roles-layout,
   .media-layout,
+  .post-editor-form,
   .settings-layout,
   .themes-layout,
   .users-layout {
     grid-template-columns: 1fr;
+  }
+
+  .post-editor-sidebar {
+    position: static;
   }
 }
 
@@ -2351,10 +2482,21 @@ select {
   .audit-page,
   .media-page,
   .modules-page,
+  .post-editor-page,
   .settings-page,
   .themes-page,
   .users-page {
     padding: 18px;
+  }
+
+  .post-title-field .cms-input {
+    min-height: 50px;
+    font-size: 24px;
+  }
+
+  .wordpress-editor .ck.ck-editor__main > .ck-editor__editable {
+    min-height: 360px;
+    padding: 16px;
   }
 
   .settings-grid {

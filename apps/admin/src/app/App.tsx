@@ -1,9 +1,11 @@
 import { Permission } from "@cms/shared";
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { AuthProvider } from "./auth/AuthProvider";
 import { PermissionGate } from "./auth/PermissionGate";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
+import { LoadingState } from "./components/PageState";
 import { ToastProvider } from "./components/ToastProvider";
 import { AdminLayout } from "./layouts/AdminLayout";
 import { AuditPage } from "./pages/AuditPage";
@@ -20,6 +22,10 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { ThemesPage } from "./pages/ThemesPage";
 import { UsersPage } from "./pages/UsersPage";
 
+const PostEditorPage = lazy(() =>
+  import("./pages/PostEditorPage").then((module) => ({ default: module.PostEditorPage })),
+);
+
 export function App() {
   return (
     <AuthProvider>
@@ -35,6 +41,36 @@ export function App() {
                 element={
                   <PermissionGate fallback={<DashboardPage />} permission={Permission.BLOG_INDEX}>
                     <BlogPage />
+                  </PermissionGate>
+                }
+              />
+              <Route
+                path="blog/posts/new"
+                element={
+                  <PermissionGate
+                    fallback={<DashboardPage />}
+                    permission={Permission.BLOG_POSTS_CREATE}
+                  >
+                    <Suspense
+                      fallback={<LoadingState description="Preparing editor." title="Loading editor" />}
+                    >
+                      <PostEditorPage />
+                    </Suspense>
+                  </PermissionGate>
+                }
+              />
+              <Route
+                path="blog/posts/:postId/edit"
+                element={
+                  <PermissionGate
+                    fallback={<DashboardPage />}
+                    permission={Permission.BLOG_POSTS_EDIT}
+                  >
+                    <Suspense
+                      fallback={<LoadingState description="Preparing editor." title="Loading editor" />}
+                    >
+                      <PostEditorPage />
+                    </Suspense>
                   </PermissionGate>
                 }
               />

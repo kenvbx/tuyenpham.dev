@@ -391,6 +391,8 @@ export type PostStatusInput = {
   status: AdminPostStatus;
 };
 
+export type PostSlugSuggestion = PageSlugSuggestion;
+
 export type CategoryFormInput = {
   description?: string | null | undefined;
   name: string;
@@ -1350,6 +1352,32 @@ export async function getPost(token: string, postId: string) {
   const response = await apiRequest<ApiSuccessResponse<AdminPostDetail>>(`/admin/posts/${postId}`, {
     token,
   });
+
+  return response.data;
+}
+
+export async function suggestPostSlug(
+  token: string,
+  input: { postId?: string | undefined; slug?: string | undefined; title?: string | undefined },
+) {
+  const params = new URLSearchParams();
+
+  if (input.postId) {
+    params.set("postId", input.postId);
+  }
+
+  if (input.slug) {
+    params.set("slug", input.slug);
+  }
+
+  if (input.title) {
+    params.set("title", input.title);
+  }
+
+  const response = await apiRequest<ApiSuccessResponse<PostSlugSuggestion>>(
+    `/admin/posts/slugs/suggest?${params.toString()}`,
+    { token },
+  );
 
   return response.data;
 }

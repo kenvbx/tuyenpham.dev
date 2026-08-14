@@ -13,10 +13,13 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@ckeditor/ckeditor5-build-classic": "^44.3.0",
+    "@ckeditor/ckeditor5-react": "^10.0.0",
     "@cms/shared": "workspace:*",
     "@cms/ui": "workspace:*",
     "@supabase/supabase-js": "^2.112.2",
     "@tanstack/react-query": "^5.101.4",
+    "ckeditor5": "44.3.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.2"

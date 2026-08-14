@@ -272,6 +272,17 @@ export class PostService {
     return this.getPost(post.id);
   }
 
+  async suggestSlug(input: {
+    postId?: string | undefined;
+    source: string;
+  }): Promise<{ available: boolean; changed: boolean; requestedSlug: string; slug: string }> {
+    return this.slugs.suggestUniqueSlug({
+      currentReferenceId: input.postId,
+      referenceType: "blog-post",
+      source: input.source,
+    });
+  }
+
   async createPost(input: CreatePostInput): Promise<PostDetail> {
     const result = await this.from("posts")
       .insert({
@@ -304,10 +315,7 @@ export class PostService {
     }
 
     const post = result.data as PostRow;
-    const slugSuggestion = await this.slugs.suggestUniqueSlug({
-      referenceType: "blog-post",
-      source: input.slug ?? post.title,
-    });
+    const slugSuggestion = await this.suggestSlug({ source: input.slug ?? post.title });
 
     await Promise.all([
       this.createSlug({

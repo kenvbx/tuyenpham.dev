@@ -6,7 +6,7 @@ import { defineConfig } from "vite";
 export default defineConfig({
   base: "/admin/",
   build: {
-    chunkSizeWarningLimit: 750,
+    chunkSizeWarningLimit: 1500,
   },
   plugins: [react(), tailwindcss()],
   resolve: {

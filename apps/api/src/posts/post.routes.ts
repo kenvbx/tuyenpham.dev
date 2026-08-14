@@ -67,6 +67,16 @@ const listPostsQuerySchema = listQuerySchema.extend({
   status: postStatusSchema.optional(),
   tagId: z.string().uuid().optional(),
 });
+const slugSuggestionQuerySchema = z
+  .object({
+    postId: z.string().uuid().optional(),
+    slug: z.string().trim().min(1).max(160).optional(),
+    title: z.string().trim().min(1).max(255).optional(),
+  })
+  .refine((value) => value.slug || value.title, {
+    message: "Slug or title is required.",
+    path: ["slug"],
+  });
 
 export type PostRouterOptions = {
   audit?: AuditService;
@@ -96,6 +106,25 @@ export function createPostRouter(options: PostRouterOptions = {}): ExpressRouter
         );
 
         response.json(body);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.get(
+    "/slugs/suggest",
+    requireAuth(auth),
+    requirePermission(Permission.BLOG_POSTS_INDEX, permissions),
+    async (request, response, next) => {
+      try {
+        const query = slugSuggestionQuerySchema.parse(request.query);
+        const suggestion = await posts.suggestSlug({
+          postId: query.postId,
+          source: query.slug ?? query.title ?? "",
+        });
+
+        response.json(createApiSuccessResponse(suggestion));
       } catch (error) {
         next(error);
       }

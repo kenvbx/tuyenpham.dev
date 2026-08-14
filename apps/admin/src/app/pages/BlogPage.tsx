@@ -2,82 +2,40 @@ import { Permission } from "@cms/shared";
 import { Button, Card, CmsIcon, Input } from "@cms/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { PermissionGate } from "../auth/PermissionGate";
 import { useAuth } from "../auth/auth-context";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { DataTable, type DataTableColumn } from "../components/DataTable";
-import { MediaPickerModal } from "../components/MediaPickerModal";
 import { ErrorState } from "../components/PageState";
 import { PageHeader } from "../components/PageHeader";
-import { ValidationSummary } from "../components/ValidationSummary";
 import { useToast } from "../components/toast-context";
 import {
   createCategory,
-  createPost,
   createTag,
   deleteCategory,
   deletePost,
   deleteTag,
-  getPost,
   listCategories,
-  listPostRevisions,
   listPosts,
   listTags,
   reorderCategories,
-  restorePostRevision,
   updateCategory,
-  updatePost,
   updatePostStatus,
   updateTag,
   type AdminCategory,
-  type AdminPostDetail,
-  type AdminPostRevision,
   type AdminPostStatus,
   type AdminPostSummary,
   type AdminTag,
   type CategoryFormInput,
-  type PostFormInput,
   type TagFormInput,
 } from "../lib/api";
 
 const statusOptions = ["draft", "published", "scheduled", "archived"] as const;
 
-type PostFormState = PostFormInput & {
-  categoryIds: string[];
-  id?: string;
-  relatedPostIds: string[];
-  seo: NonNullable<PostFormInput["seo"]>;
-  tagIds: string[];
-};
-
 type CategoryFormState = CategoryFormInput & { id?: string };
 type TagFormState = TagFormInput & { id?: string };
-
-const emptyPostForm: PostFormState = {
-  categoryIds: [],
-  contentHtml: "",
-  contentText: "",
-  excerpt: "",
-  featuredImageId: "",
-  publishedAt: "",
-  relatedPostIds: [],
-  seo: {
-    canonicalUrl: "",
-    metaDescription: "",
-    metaTitle: "",
-    nofollow: false,
-    noindex: false,
-    ogDescription: "",
-    ogImageId: "",
-    ogImageUrl: "",
-    ogTitle: "",
-  },
-  slug: "",
-  status: "draft",
-  tagIds: [],
-  title: "",
-};
 
 const emptyCategoryForm: CategoryFormState = {
   description: "",
@@ -108,7 +66,6 @@ export function BlogPage() {
     status: "",
     tagId: "",
   });
-  const [postForm, setPostForm] = useState<PostFormState>(emptyPostForm);
   const [categoryForm, setCategoryForm] = useState<CategoryFormState>(emptyCategoryForm);
   const [tagForm, setTagForm] = useState<TagFormState>(emptyTagForm);
   const [pendingPostDeleteId, setPendingPostDeleteId] = useState<string | null>(null);
@@ -129,11 +86,6 @@ export function BlogPage() {
       }),
     queryKey: ["posts", filters],
   });
-  const postOptionsQuery = useQuery({
-    enabled: Boolean(token),
-    queryFn: () => listPosts(token, { page: 1, perPage: 100 }),
-    queryKey: ["posts", "options"],
-  });
   const categoriesQuery = useQuery({
     enabled: Boolean(token),
     queryFn: () => listCategories(token),
@@ -144,37 +96,10 @@ export function BlogPage() {
     queryFn: () => listTags(token),
     queryKey: ["tags"],
   });
-  const revisionsQuery = useQuery({
-    enabled: Boolean(token && postForm.id),
-    queryFn: () => listPostRevisions(token, postForm.id ?? ""),
-    queryKey: ["posts", postForm.id, "revisions"],
-  });
-
-  const loadPostMutation = useMutation({
-    mutationFn: (postId: string) => getPost(token, postId),
-    onSuccess: (post) => setPostForm(toPostFormState(post)),
-  });
-  const savePostMutation = useMutation({
-    mutationFn: async (input: PostFormState) => {
-      if (input.id) {
-        return updatePost(token, input.id, input);
-      }
-
-      return createPost(token, input);
-    },
-    onSuccess: async (post) => {
-      setPostForm(toPostFormState(post));
-      await invalidateBlogQueries(queryClient);
-      notify({ message: "Blog post has been saved.", title: "Post saved", variant: "success" });
-    },
-  });
   const statusMutation = useMutation({
     mutationFn: ({ postId, status }: { postId: string; status: AdminPostStatus }) =>
       updatePostStatus(token, postId, { status }),
-    onSuccess: async (post) => {
-      if (postForm.id === post.id) {
-        setPostForm(toPostFormState(post));
-      }
+    onSuccess: async () => {
       await invalidateBlogQueries(queryClient);
       notify({
         message: "Blog post status has been updated.",
@@ -183,26 +108,10 @@ export function BlogPage() {
       });
     },
   });
-  const restoreRevisionMutation = useMutation({
-    mutationFn: ({ postId, revisionId }: { postId: string; revisionId: string }) =>
-      restorePostRevision(token, postId, revisionId),
-    onSuccess: async (post) => {
-      setPostForm(toPostFormState(post));
-      await invalidateBlogQueries(queryClient);
-      notify({
-        message: "Blog post has been restored from a revision.",
-        title: "Revision restored",
-        variant: "success",
-      });
-    },
-  });
   const deletePostMutation = useMutation({
     mutationFn: (postId: string) => deletePost(token, postId),
     onSuccess: async () => {
       setPendingPostDeleteId(null);
-      if (pendingPostDeleteId === postForm.id) {
-        setPostForm(emptyPostForm);
-      }
       await invalidateBlogQueries(queryClient);
       notify({
         message: "Blog post has been moved to deleted.",
@@ -273,20 +182,14 @@ export function BlogPage() {
   });
 
   const posts = postsQuery.data?.data ?? [];
-  const postOptions = postOptionsQuery.data?.data ?? [];
   const pagination = postsQuery.data?.pagination;
   const categories = categoriesQuery.data ?? [];
   const tags = tagsQuery.data ?? [];
   const error =
     postsQuery.error ??
-    postOptionsQuery.error ??
     categoriesQuery.error ??
     tagsQuery.error ??
-    loadPostMutation.error ??
-    savePostMutation.error ??
     statusMutation.error ??
-    revisionsQuery.error ??
-    restoreRevisionMutation.error ??
     deletePostMutation.error ??
     saveCategoryMutation.error ??
     reorderCategoryMutation.error ??
@@ -349,13 +252,13 @@ export function BlogPage() {
       render: (post) => (
         <div className="row-actions">
           <PermissionGate permission={Permission.BLOG_POSTS_EDIT}>
-            <button
+            <Link
+              className="row-action-link"
               aria-label={`Edit ${post.title}`}
-              type="button"
-              onClick={() => loadPostMutation.mutate(post.id)}
+              to={`/admin/blog/posts/${post.id}/edit`}
             >
               <CmsIcon name="edit" />
-            </button>
+            </Link>
           </PermissionGate>
           <PermissionGate permission={Permission.BLOG_POSTS_PUBLISH}>
             <button
@@ -402,11 +305,6 @@ export function BlogPage() {
     }));
   }
 
-  function handlePostSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    savePostMutation.mutate(postForm);
-  }
-
   function handleCategorySubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     saveCategoryMutation.mutate(categoryForm);
@@ -441,97 +339,69 @@ export function BlogPage() {
         title="Blog"
         actions={
           <PermissionGate permission={Permission.BLOG_POSTS_CREATE}>
-            <Button type="button" onClick={() => setPostForm(emptyPostForm)}>
+            <Link className="cms-button" to="/admin/blog/posts/new">
               <CmsIcon name="plus" />
               New post
-            </Button>
+            </Link>
           </PermissionGate>
         }
       />
 
       {error && <ErrorState error={error} fallback="Unable to load blog workspace." />}
 
-      <div className="pages-layout">
-        <Card className="table-panel">
-          <DataTable
-            columns={columns}
-            data={posts}
-            emptyDescription="Create the first blog post."
-            emptyTitle="No posts found"
-            filters={
-              <>
-                <select name="status" defaultValue={filters.status}>
-                  <option value="">All status</option>
-                  {statusOptions.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
-                <select name="categoryId" defaultValue={filters.categoryId}>
-                  <option value="">All categories</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-                <select name="tagId" defaultValue={filters.tagId}>
-                  <option value="">All tags</option>
-                  {tags.map((tag) => (
-                    <option key={tag.id} value={tag.id}>
-                      {tag.name}
-                    </option>
-                  ))}
-                </select>
-              </>
-            }
-            getRowKey={(post) => post.id}
-            isLoading={postsQuery.isLoading}
-            loadingDescription="Fetching blog posts."
-            loadingTitle="Loading posts"
-            onSearch={handlePostSearch}
-            pagination={
-              pagination
-                ? {
-                    label: `${pagination.total} posts`,
-                    onPageChange: (page) => setFilters((current) => ({ ...current, page })),
-                    page: pagination.page,
-                    pageCount: pagination.pageCount,
-                  }
-                : undefined
-            }
-            searchDefaultValue={filters.search}
-            searchPlaceholder="Search posts"
-          />
-        </Card>
-
-        <PermissionGate
-          permission={postForm.id ? Permission.BLOG_POSTS_EDIT : Permission.BLOG_POSTS_CREATE}
-        >
-          <Card className="form-panel">
-            <PostForm
-              categories={categories}
-              form={postForm}
-              isLoading={loadPostMutation.isPending}
-              isSaving={savePostMutation.isPending}
-              onChange={setPostForm}
-              onRestoreRevision={(revisionId) => {
-                if (postForm.id) {
-                  restoreRevisionMutation.mutate({ postId: postForm.id, revisionId });
+      <Card className="table-panel">
+        <DataTable
+          columns={columns}
+          data={posts}
+          emptyDescription="Create the first blog post."
+          emptyTitle="No posts found"
+          filters={
+            <>
+              <select name="status" defaultValue={filters.status}>
+                <option value="">All status</option>
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+              <select name="categoryId" defaultValue={filters.categoryId}>
+                <option value="">All categories</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+              <select name="tagId" defaultValue={filters.tagId}>
+                <option value="">All tags</option>
+                {tags.map((tag) => (
+                  <option key={tag.id} value={tag.id}>
+                    {tag.name}
+                  </option>
+                ))}
+              </select>
+            </>
+          }
+          getRowKey={(post) => post.id}
+          isLoading={postsQuery.isLoading}
+          loadingDescription="Fetching blog posts."
+          loadingTitle="Loading posts"
+          onSearch={handlePostSearch}
+          pagination={
+            pagination
+              ? {
+                  label: `${pagination.total} posts`,
+                  onPageChange: (page) => setFilters((current) => ({ ...current, page })),
+                  page: pagination.page,
+                  pageCount: pagination.pageCount,
                 }
-              }}
-              onSubmit={handlePostSubmit}
-              postOptions={postOptions}
-              revisions={revisionsQuery.data ?? []}
-              revisionsLoading={revisionsQuery.isFetching || restoreRevisionMutation.isPending}
-              tags={tags}
-              token={token}
-              validationError={savePostMutation.error}
-            />
-          </Card>
-        </PermissionGate>
-      </div>
+              : undefined
+          }
+          searchDefaultValue={filters.search}
+          searchPlaceholder="Search posts"
+        />
+      </Card>
 
       <div className="taxonomy-management-grid">
         <PermissionGate permission={Permission.CATEGORIES_INDEX}>
@@ -604,344 +474,6 @@ export function BlogPage() {
         }}
       />
     </section>
-  );
-}
-
-function PostForm({
-  categories,
-  form,
-  isLoading,
-  isSaving,
-  onChange,
-  onRestoreRevision,
-  onSubmit,
-  postOptions,
-  revisions,
-  revisionsLoading,
-  tags,
-  token,
-  validationError,
-}: {
-  categories: AdminCategory[];
-  form: PostFormState;
-  isLoading: boolean;
-  isSaving: boolean;
-  onChange: (form: PostFormState) => void;
-  onRestoreRevision: (revisionId: string) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  postOptions: AdminPostSummary[];
-  revisions: AdminPostRevision[];
-  revisionsLoading: boolean;
-  tags: AdminTag[];
-  token: string;
-  validationError: unknown;
-}) {
-  const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
-  const relatedOptions = postOptions.filter((post) => post.id !== form.id);
-
-  return (
-    <form className="page-form post-form" onSubmit={onSubmit}>
-      <div>
-        <p>{form.id ? "Edit post" : "Create post"}</p>
-        <h3>{form.id ? form.title : "New blog post"}</h3>
-      </div>
-
-      {Boolean(validationError) && (
-        <ValidationSummary error={validationError} fallback="Unable to save post." />
-      )}
-
-      <label>
-        Title
-        <Input
-          required
-          disabled={isLoading}
-          value={form.title}
-          onChange={(event) => onChange({ ...form, title: event.target.value })}
-        />
-      </label>
-
-      <label>
-        Slug
-        <Input
-          disabled={isLoading}
-          placeholder="auto-generated-from-title"
-          value={form.slug}
-          onChange={(event) => onChange({ ...form, slug: normalizeSlug(event.target.value) })}
-        />
-      </label>
-
-      <div className="form-grid">
-        <label>
-          Status
-          <select
-            disabled={isLoading}
-            value={form.status}
-            onChange={(event) =>
-              onChange({ ...form, status: event.target.value as AdminPostStatus })
-            }
-          >
-            {statusOptions.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Publish date
-          <Input
-            disabled={isLoading}
-            type="datetime-local"
-            value={toDatetimeLocalValue(form.publishedAt)}
-            onChange={(event) =>
-              onChange({ ...form, publishedAt: fromDatetimeLocalValue(event.target.value) })
-            }
-          />
-        </label>
-      </div>
-
-      <label>
-        Excerpt
-        <textarea
-          disabled={isLoading}
-          maxLength={1000}
-          value={form.excerpt ?? ""}
-          onChange={(event) => onChange({ ...form, excerpt: event.target.value })}
-        />
-      </label>
-
-      <TaxonomyChoices
-        emptyLabel="No categories available."
-        ids={form.categoryIds}
-        items={categories}
-        label="Categories"
-        onToggle={(categoryId) =>
-          onChange({ ...form, categoryIds: toggleId(form.categoryIds, categoryId) })
-        }
-      />
-
-      <TaxonomyChoices
-        emptyLabel="No tags available."
-        ids={form.tagIds}
-        items={tags}
-        label="Tags"
-        onToggle={(tagId) => onChange({ ...form, tagIds: toggleId(form.tagIds, tagId) })}
-      />
-
-      <TaxonomyChoices
-        emptyLabel="No related post options."
-        getLabel={(post) => post.title}
-        ids={form.relatedPostIds}
-        items={relatedOptions}
-        label="Related posts"
-        onToggle={(postId) =>
-          onChange({ ...form, relatedPostIds: toggleId(form.relatedPostIds, postId) })
-        }
-      />
-
-      <label>
-        Content
-        <RichTextEditor
-          value={form.contentHtml ?? ""}
-          onChange={(contentHtml) =>
-            onChange({
-              ...form,
-              contentHtml,
-              contentText: stripHtml(contentHtml),
-            })
-          }
-        />
-      </label>
-
-      <div className="media-reference-field">
-        <label>
-          Featured image ID
-          <Input
-            disabled={isLoading}
-            value={form.featuredImageId ?? ""}
-            onChange={(event) => onChange({ ...form, featuredImageId: event.target.value })}
-          />
-        </label>
-        <Button type="button" variant="secondary" onClick={() => setIsMediaPickerOpen(true)}>
-          <CmsIcon name="media" />
-          Pick image
-        </Button>
-      </div>
-
-      <SeoFields form={form} onChange={onChange} />
-
-      <Button disabled={isSaving || isLoading} type="submit">
-        {isSaving ? "Saving" : form.id ? "Save changes" : "Create post"}
-      </Button>
-
-      {form.id && (
-        <RevisionPanel
-          isLoading={revisionsLoading}
-          revisions={revisions}
-          onRestore={onRestoreRevision}
-        />
-      )}
-
-      <MediaPickerModal
-        acceptedType="image"
-        isOpen={isMediaPickerOpen}
-        token={token}
-        onClose={() => setIsMediaPickerOpen(false)}
-        onSelect={(file) =>
-          onChange({
-            ...form,
-            featuredImageId: file.id,
-            seo: {
-              ...form.seo,
-              ogImageId: form.seo.ogImageId || file.id,
-              ogImageUrl: form.seo.ogImageUrl || file.url,
-            },
-          })
-        }
-      />
-    </form>
-  );
-}
-
-function TaxonomyChoices<TItem extends { id: string; name?: string; title?: string }>({
-  emptyLabel,
-  getLabel = (item) => item.name ?? item.title ?? item.id,
-  ids,
-  items,
-  label,
-  onToggle,
-}: {
-  emptyLabel: string;
-  getLabel?: (item: TItem) => string;
-  ids: string[];
-  items: TItem[];
-  label: string;
-  onToggle: (id: string) => void;
-}) {
-  return (
-    <fieldset className="taxonomy-fieldset">
-      <legend>{label}</legend>
-      <div className="choice-list">
-        {items.map((item) => (
-          <label key={item.id}>
-            <input
-              checked={ids.includes(item.id)}
-              type="checkbox"
-              onChange={() => onToggle(item.id)}
-            />
-            <span>{getLabel(item)}</span>
-          </label>
-        ))}
-        {items.length === 0 && <small>{emptyLabel}</small>}
-      </div>
-    </fieldset>
-  );
-}
-
-function SeoFields({
-  form,
-  onChange,
-}: {
-  form: PostFormState;
-  onChange: (form: PostFormState) => void;
-}) {
-  return (
-    <fieldset className="seo-fieldset">
-      <legend>SEO</legend>
-      <label>
-        Meta title
-        <Input
-          maxLength={160}
-          value={form.seo.metaTitle ?? ""}
-          onChange={(event) =>
-            onChange({ ...form, seo: { ...form.seo, metaTitle: event.target.value } })
-          }
-        />
-      </label>
-      <label>
-        Meta description
-        <textarea
-          maxLength={320}
-          value={form.seo.metaDescription ?? ""}
-          onChange={(event) =>
-            onChange({ ...form, seo: { ...form.seo, metaDescription: event.target.value } })
-          }
-        />
-      </label>
-      <label>
-        Canonical URL
-        <Input
-          type="url"
-          value={form.seo.canonicalUrl ?? ""}
-          onChange={(event) =>
-            onChange({ ...form, seo: { ...form.seo, canonicalUrl: event.target.value } })
-          }
-        />
-      </label>
-      <label>
-        OG title
-        <Input
-          maxLength={160}
-          value={form.seo.ogTitle ?? ""}
-          onChange={(event) =>
-            onChange({ ...form, seo: { ...form.seo, ogTitle: event.target.value } })
-          }
-        />
-      </label>
-      <label>
-        OG description
-        <textarea
-          maxLength={320}
-          value={form.seo.ogDescription ?? ""}
-          onChange={(event) =>
-            onChange({ ...form, seo: { ...form.seo, ogDescription: event.target.value } })
-          }
-        />
-      </label>
-      <div className="form-grid">
-        <label>
-          OG image ID
-          <Input
-            value={form.seo.ogImageId ?? ""}
-            onChange={(event) =>
-              onChange({ ...form, seo: { ...form.seo, ogImageId: event.target.value } })
-            }
-          />
-        </label>
-        <label>
-          OG image URL
-          <Input
-            type="url"
-            value={form.seo.ogImageUrl ?? ""}
-            onChange={(event) =>
-              onChange({ ...form, seo: { ...form.seo, ogImageUrl: event.target.value } })
-            }
-          />
-        </label>
-      </div>
-      <div className="inline-checks">
-        <label>
-          <input
-            checked={Boolean(form.seo.noindex)}
-            type="checkbox"
-            onChange={(event) =>
-              onChange({ ...form, seo: { ...form.seo, noindex: event.target.checked } })
-            }
-          />
-          Noindex
-        </label>
-        <label>
-          <input
-            checked={Boolean(form.seo.nofollow)}
-            type="checkbox"
-            onChange={(event) =>
-              onChange({ ...form, seo: { ...form.seo, nofollow: event.target.checked } })
-            }
-          />
-          Nofollow
-        </label>
-      </div>
-    </fieldset>
   );
 }
 
@@ -1170,79 +702,6 @@ function TagManager({
   );
 }
 
-function RevisionPanel({
-  isLoading,
-  onRestore,
-  revisions,
-}: {
-  isLoading: boolean;
-  onRestore: (revisionId: string) => void;
-  revisions: AdminPostRevision[];
-}) {
-  return (
-    <section className="revision-panel">
-      <header>
-        <div>
-          <p>History</p>
-          <h4>Revisions</h4>
-        </div>
-        {isLoading && <span>Loading</span>}
-      </header>
-      {revisions.length === 0 ? (
-        <p>No revisions yet.</p>
-      ) : (
-        <div className="revision-list">
-          {revisions.map((revision) => (
-            <article key={revision.id}>
-              <div>
-                <strong>Revision {revision.revisionNumber}</strong>
-                <span>{revision.title ?? revision.snapshot.title}</span>
-                <small>{formatDate(revision.createdAt)}</small>
-              </div>
-              <Button
-                disabled={isLoading}
-                size="sm"
-                type="button"
-                variant="secondary"
-                onClick={() => onRestore(revision.id)}
-              >
-                Restore
-              </Button>
-            </article>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function RichTextEditor({ onChange, value }: { onChange: (value: string) => void; value: string }) {
-  return (
-    <div className="rich-editor">
-      <div className="editor-toolbar" aria-label="Editor toolbar">
-        <button type="button" onClick={() => onChange(`${value}<h2>Heading</h2>`)}>
-          H2
-        </button>
-        <button type="button" onClick={() => onChange(`${value}<p>Paragraph text</p>`)}>
-          P
-        </button>
-        <button type="button" onClick={() => onChange(`${value}<strong>Bold text</strong>`)}>
-          B
-        </button>
-        <button type="button" onClick={() => onChange(`${value}<ul><li>List item</li></ul>`)}>
-          List
-        </button>
-      </div>
-      <textarea
-        className="content-textarea"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-      <div className="editor-preview" dangerouslySetInnerHTML={{ __html: value || "<p></p>" }} />
-    </div>
-  );
-}
-
 async function invalidateBlogQueries(queryClient: ReturnType<typeof useQueryClient>) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: ["posts"] }),
@@ -1257,34 +716,6 @@ async function invalidateTaxonomyQueries(queryClient: ReturnType<typeof useQuery
     queryClient.invalidateQueries({ queryKey: ["categories"] }),
     queryClient.invalidateQueries({ queryKey: ["tags"] }),
   ]);
-}
-
-function toPostFormState(post: AdminPostDetail): PostFormState {
-  return {
-    categoryIds: post.categories.map((category) => category.id),
-    contentHtml: post.contentHtml ?? "",
-    contentText: post.contentText ?? "",
-    excerpt: post.excerpt ?? "",
-    featuredImageId: post.featuredImageId ?? "",
-    id: post.id,
-    publishedAt: post.publishedAt ?? "",
-    relatedPostIds: post.relatedPosts.map((relatedPost) => relatedPost.id),
-    seo: {
-      canonicalUrl: post.seo?.canonicalUrl ?? "",
-      metaDescription: post.seo?.metaDescription ?? "",
-      metaTitle: post.seo?.metaTitle ?? "",
-      nofollow: post.seo?.nofollow ?? false,
-      noindex: post.seo?.noindex ?? false,
-      ogDescription: post.seo?.ogDescription ?? "",
-      ogImageId: post.seo?.ogImageId ?? "",
-      ogImageUrl: post.seo?.ogImageUrl ?? "",
-      ogTitle: post.seo?.ogTitle ?? "",
-    },
-    slug: post.slug?.key ?? "",
-    status: post.status as AdminPostStatus,
-    tagIds: post.tags.map((tag) => tag.id),
-    title: post.title,
-  };
 }
 
 function toCategoryFormState(category: AdminCategory): CategoryFormState {
@@ -1349,29 +780,6 @@ function formatDate(value: string | null) {
   }).format(new Date(value));
 }
 
-function toDatetimeLocalValue(value: string | null | undefined) {
-  if (!value) {
-    return "";
-  }
-
-  return value.slice(0, 16);
-}
-
-function fromDatetimeLocalValue(value: string) {
-  if (!value) {
-    return "";
-  }
-
-  return new Date(value).toISOString();
-}
-
-function stripHtml(value: string) {
-  return value
-    .replace(/<[^>]*>/gu, " ")
-    .replace(/\s+/gu, " ")
-    .trim();
-}
-
 function normalizeSlug(value: string) {
   return value
     .normalize("NFD")
@@ -1379,8 +787,4 @@ function normalizeSlug(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/gu, "-")
     .replace(/^-+|-+$/gu, "");
-}
-
-function toggleId(ids: string[], id: string) {
-  return ids.includes(id) ? ids.filter((currentId) => currentId !== id) : [...ids, id];
 }
